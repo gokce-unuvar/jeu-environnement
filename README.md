@@ -1,3 +1,6 @@
+Gokçe Sukriye UNUVAR 21304812
+Zoe TABOURIER 21302469
+
 # Symbiotica
 
 
