@@ -10,3 +10,4 @@ L’utilisateur veut voir des feux de forêts	Finir le code du TME	2			X
 	Faire la graphisme du feu	1		X		
 						
 
+git checkout c5b441b7e2f60b426550c1efa619ea5221addbc5 (1ere version)
