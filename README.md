@@ -7,5 +7,5 @@ Notre projet :
 - en 3D
 - environnement avec des humains en proies, des prédateurs (loups, ours etc) avec des comportements différents et des robots qui protègent les humains
 - des robots sont créés en fonction du nombre des humains  
-- les robots deviennent mauvais et tuent les umins
-à finir
+- les robots deviennent mauvais et tuent les humains
+- à finir
