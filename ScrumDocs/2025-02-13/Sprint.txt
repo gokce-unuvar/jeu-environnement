@@ -1,13 +1,15 @@
 ﻿Sprint Goal: première visualisation de notre environnement et choix du rendu graphique
-Échéance: 13 février 2025
-User Stories	Tâches	Nombre d’heures estimées	Nombre d’heures faits	En attente	Prêt	Terminé
-L’utilisateur veut un rendu visuel	Étudier l’option Pygame	1h		X		
-	Étudier l'option Java 2D	1h30		X		
-L’utilisateur veut voir le monde	Écrire une démo
-graphique	2		X		
-L’utilisateur veut voir des feux de forêts	Finir le code du TME	2			X	
-	Faire la graphisme de l’arbre	1		X		
-	Faire la graphisme du feu	1		X		
-						
 
-git checkout c5b441b7e2f60b426550c1efa619ea5221addbc5 (1ere version)
+Échéance: 13 février 2025
+	
+User Stories	Taches	Nombre d’heures estimées	Nombre d’heures faits	En attente	Prêt	Terminé
+	L’utilisateur veut un rendu visuel	1h	2h			X
+	Étudier l’option Pygame	1h30	1h			X
+	Étudier l'option Java 2D	1h30	1h			X
+	L’utilisateur veut voir le monde	1h			X	
+	Écrire une démo graphique	1h			X	
+	L’utilisateur veut voir des feux de forêts	2h			X	
+	Faire la graphisme de l’arbre	1h				
+	Faire la graphisme du feu	1h				
+
+git checkout b7d44d19c971f835e824050e90a6f1d8540ddb34 (2e version)
