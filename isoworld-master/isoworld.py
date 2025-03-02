@@ -54,9 +54,9 @@ versionTag = "2018-12-24_15h06"
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 
 # all values are for initialisation. May change during runtime.
-nbTrees = 35 #350
-nbBurningTrees = 1 #15
-nbAgents = 10
+nbTrees = 100 #350
+nbBurningTrees = 7 #15
+nbAgents = 0
 
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
@@ -105,7 +105,7 @@ pygame.init()
 #pygame.key.set_repeat(5,5)
 fpsClock = pygame.time.Clock()
 screen = pygame.display.set_mode((screenWidth, screenHeight), DOUBLEBUF)
-pygame.display.set_caption('World of Isotiles')
+pygame.display.set_caption('Symbiotica')
 
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
@@ -455,7 +455,7 @@ def initWorld():
             setObjectAt( x+x_offset, y+y_offset, -1 ) # add a virtual object: not displayed, but used to forbid agent(s) to come here.
     setObjectAt( x_offset+3, y_offset+4, treeId )
 
-    for c in [(20,2),(30,2),(30,12),(20,12)]:
+    for c in [(20,2),(30,2),(30,12),(20,12)]: # position des poteaux orange
         for level in range(0,objectMapLevels):
             setObjectAt(c[0],c[1],blockId,level)
     for i in range(9):
@@ -463,10 +463,10 @@ def initWorld():
         setObjectAt(21+i,12,blockId,objectMapLevels-1)
         setObjectAt(20,3+i,blockId,objectMapLevels-1)
         setObjectAt(30,3+i,blockId,objectMapLevels-1)
-
+    
     for i in range(nbAgents):
         agents.append(BasicAgent(ghostId))
-
+    
     for i in range(nbTrees):
         x = randint(0,getWorldWidth()-1)
         y = randint(0,getWorldHeight()-1)
@@ -578,10 +578,10 @@ while userExit == False:
         print ("")
         pygame.quit()
         sys.exit()
-
+    '''
     if it % 10 == 0:
         agents.append(BasicAgent(ghostId))
-
+    '''
     # continuous stroke
     keys = pygame.key.get_pressed()
     if keys[pygame.K_LEFT] and not ( keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT] ):
@@ -609,13 +609,13 @@ while userExit == False:
         if event.type == KEYUP:
             if event.key == K_ESCAPE:
                 userExit = True
-            elif event.key == pygame.K_j:
+            elif event.key == pygame.K_q:
                 player.move2(0,+1);
-            elif event.key == pygame.K_u:
+            elif event.key == pygame.K_z:
                 player.move2(0,-1);
-            elif event.key == pygame.K_k:
+            elif event.key == pygame.K_d:
                 player.move2(+1,0);
-            elif event.key == pygame.K_h:
+            elif event.key == pygame.K_s:
                 player.move2(-1,0);
             elif event.key == pygame.K_n and pygame.key.get_mods() & pygame.KMOD_SHIFT:
                 addNoise = not(addNoise)
