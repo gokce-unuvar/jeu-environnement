@@ -56,8 +56,13 @@ versionTag = "2018-12-24_15h06"
 # all values are for initialisation. May change during runtime.
 nbTrees = 100 #350
 nbBurningTrees = 7 #15
-nbAgents = 0
+nbPredators = 0
+nbRobots = 0
+nbHumans = 0
+nbEvilRobots = 0
 
+# These could be used later for visuals, or logic, or just to distinguish different agents
+noAgentId = 0
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
@@ -139,9 +144,12 @@ def loadAllImages():
     objectType.append(loadImage('assets/basic111x128/tree_small_NW_ret_red.png')) # burning tree
 
     agentType.append(None) # default -- never drawn
-    agentType.append(loadImage('assets/basic111x128/invader_ret.png')) # invader
-    agentType.append(loadImage('assets/basic111x128/ghost_pinky.png')) # purple ghost
-    agentType.append(loadImage('assets/basic111x128/baby.png')) # baby
+    agentType.append(loadImage('assets/basic111x128/player.png')) # invader -> player
+    agentType.append(loadImage('assets/basic111x128/wolf.png')) # purple ghost -> wolf
+    agentType.append(loadImage('assets/basic111x128/woman.png')) # baby -> human
+    agentType.append(loadImage('assets/basic111x128/robot.png'))
+    agentType.append(loadImage('assets/basic111x128/evil_robot.png'))
+
 
 def resetImages():
     global tileTotalWidth, tileTotalHeight, tileTotalWidthOriginal, tileTotalHeightOriginal, scaleMultiplier, heightMultiplier, tileVisibleHeight
@@ -175,11 +183,17 @@ agentType = []
 noObjectId = noAgentId = 0
 grassId = 0
 treeId = 1
-burningTreeId = 3
-invaderId = 1
-ghostId = 2
-babyId = 3
 blockId = 2
+burningTreeId = 3
+playerId = 1
+#ghostId = 2
+#babyId = 3
+
+humanId = 3
+robotId = 4
+evilRobotId = 5  # Evil robot will have a different ID
+predatorId = 2
+
 
 ###
 
@@ -210,10 +224,8 @@ def displayWelcomeMessage():
 
     print ("")
     print ("=-= =-= =-= =-= =-= =-= =-= =-= =-= =-= =-= =-= =-=")
-    print ("=-=  World of Isotiles                          =-=")
+    print ("=-=                 Symbiotica                  =-=")
     print ("=-=                                             =-=")
-    print ("=-=  nicolas.bredeche(at)sorbonne-universite.fr =-=")
-    print ("=-=  licence CC:BY:SA                           =-=")
     print ("=-= =-= =-= =-= =-= =-= =-= =-= =-= =-= =-= =-= =-=")
     print (">> v.",versionTag)
     print ("")
@@ -327,7 +339,9 @@ def render( it = 0 ):
 
             if getAgentAt( xTile, yTile ) != 0: # agent on terrain?
                 screen.blit( agentType[ getAgentAt( xTile, yTile ) ] , (xScreen, yScreen - heightMultiplier ))
-
+            
+            #print(f"Agent at ({xTile}, {yTile}): {getAgentAt( xTile, yTile )}")  # Debugging print
+            
     return
 
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
@@ -391,6 +405,165 @@ class BasicAgent:
         return self.type
 
 agents = []
+
+
+class Human:
+    def __init__(self, imageId):
+        self.type = imageId
+        self.reset()
+
+    def reset(self):
+        """Place l'humain aléatoirement dans le monde"""
+        self.x = randint(0, getWorldWidth() - 1)
+        self.y = randint(0, getWorldHeight() - 1)
+        while getTerrainAt(self.x, self.y) != 0 or getObjectAt(self.x, self.y) != 0 or getAgentAt(self.x, self.y) != 0:
+            self.x = randint(0, getWorldWidth() - 1)
+            self.y = randint(0, getWorldHeight() - 1)
+        setAgentAt(self.x, self.y, self.type)
+        return
+
+    def move(self):
+        """Bouge aléatoirement l'humain dans le monde dans une des quatre directions"""
+        xNew, yNew = self.x, self.y
+        if random() < 0.5:
+            xNew = (self.x + [-1, +1][randint(0, 1)] + getWorldWidth()) % getWorldWidth()
+        else:
+            yNew = (self.y + [-1, +1][randint(0, 1)] + getWorldHeight()) % getWorldHeight()
+
+        if getObjectAt(xNew, yNew) == 0:  # Can only move if no obstacle
+            setAgentAt(self.x, self.y, noAgentId)
+            self.x, self.y = xNew, yNew
+            setAgentAt(self.x, self.y, self.type)
+        return
+
+
+    def reproduce(self, humans, reproduction_chance=0.01):
+        """Les humains se reproduisent avec une probabilité"""
+        if random() < reproduction_chance:
+            new_x = (self.x + [-1, 0, 1][randint(0, 2)] + getWorldWidth()) % getWorldWidth()
+            new_y = (self.y + [-1, 0, 1][randint(0, 2)] + getWorldHeight()) % getWorldHeight()
+            if getAgentAt(new_x, new_y) == 0:  # Only reproduce if space is free
+                humans.append(Human(self.type))
+                humans[-1].x, humans[-1].y = new_x, new_y
+                setAgentAt(new_x, new_y, self.type)
+        return 
+
+
+class Robot:
+    def __init__(self, imageId):
+        self.type = imageId
+        self.reset()
+        self.evil = False  # Starts peaceful
+
+    def reset(self):
+        """Place le robot aléatoirement dans le monde"""
+        self.x = randint(0, getWorldWidth() - 1)
+        self.y = randint(0, getWorldHeight() - 1)
+        while getTerrainAt(self.x, self.y) != 0 or getObjectAt(self.x, self.y) != 0 or getAgentAt(self.x, self.y) != 0:
+            self.x = randint(0, getWorldWidth() - 1)
+            self.y = randint(0, getWorldHeight() - 1)
+        setAgentAt(self.x, self.y, self.type)
+        return
+
+    def move(self):
+        """Bouge aléatoirement le robot dans le monde dans une des quatre directions."""
+        xNew, yNew = self.x, self.y
+        if random() < 0.5:
+            xNew = (self.x + [-1, +1][randint(0, 1)] + getWorldWidth()) % getWorldWidth()
+        else:
+            yNew = (self.y + [-1, +1][randint(0, 1)] + getWorldHeight()) % getWorldHeight()
+
+        if getObjectAt(xNew, yNew) == 0:  # Can only move if no obstacle
+            setAgentAt(self.x, self.y, noAgentId)
+            self.x, self.y = xNew, yNew
+            setAgentAt(self.x, self.y, self.type)
+        return
+
+    def turn_evil(self, probability=0.005):
+        """Peux de chance de devenir méchant et d'attaquer les humains"""
+        if not self.evil and random() < probability:
+            self.evil = True
+            self.type = evilRobotId  # Change appearance
+        return
+
+    def attack_human(self, humans):
+        """Si mechant, tue l'humain"""
+        if self.evil:
+            for human in humans:
+                if human.x == self.x and human.y == self.y:
+                    humans.remove(human)  # tue l'humain
+                    break  # Tue un humain a la fois
+        return
+
+    def attack_predator(self, predators, probability = 0.5):
+        """Si gentil, tue les predateurs avec une probabilite pour proteger les humains"""
+        if not self.evil and random() < probability :
+            for predator in predators:
+                if predator.x == self.x and predator.y == self.y:
+                    predators.remove(predator)  # tue le predateur
+                    break  # tue un predateur a la fois
+        return
+
+    def reproduce(self, robots, reproduction_chance=0.00002):
+        """Les humains se reproduisent avec une probabilité"""
+        if random() < reproduction_chance:
+            new_x = 31
+            new_y = 31
+            if getAgentAt(new_x, new_y) == 0:  # Only reproduce if space is free
+                robots.append(Robot(self.type))
+                robots[-1].x, robots[-1].y = new_x, new_y
+                setAgentAt(new_x, new_y, self.type)
+        return        
+
+class Predator:
+    def __init__(self, imageId):
+        self.type = imageId
+        self.reset()
+
+    def reset(self):
+        """Place le predateur aléatoirement dans le monde"""
+        self.x = randint(0, getWorldWidth() - 1)
+        self.y = randint(0, getWorldHeight() - 1)
+        while getTerrainAt(self.x, self.y) != 0 or getObjectAt(self.x, self.y) != 0 or getAgentAt(self.x, self.y) != 0:
+            self.x = randint(0, getWorldWidth() - 1)
+            self.y = randint(0, getWorldHeight() - 1)
+        setAgentAt(self.x, self.y, self.type)
+        return
+
+    def move(self):
+        """Bouge aléatoirement le predateur dans le monde dans une des quatre directions"""
+        xNew, yNew = self.x, self.y
+        if random() < 0.5:
+            xNew = (self.x + [-1, +1][randint(0, 1)] + getWorldWidth()) % getWorldWidth()
+        else:
+            yNew = (self.y + [-1, +1][randint(0, 1)] + getWorldHeight()) % getWorldHeight()
+
+        if getObjectAt(xNew, yNew) == 0:  # Can only move if no obstacle
+            setAgentAt(self.x, self.y, noAgentId)
+            self.x, self.y = xNew, yNew
+            setAgentAt(self.x, self.y, self.type)
+        return
+
+    def hunt(self, humans):
+        """Tue un humain si sur la même case."""
+        for human in humans:
+            if human.x == self.x and human.y == self.y:
+                humans.remove(human)  # Tue l'humain
+                break  # Tue un seul a la fois
+        return
+
+    def reproduce(self, predators, reproduction_chance=0.02):
+        """Les humains se reproduisent avec une probabilité"""
+        if random() < reproduction_chance:
+            new_x = (self.x + [-1, 0, 1][randint(0, 2)] + getWorldWidth()) % getWorldWidth()
+            new_y = (self.y + [-1, 0, 1][randint(0, 2)] + getWorldHeight()) % getWorldHeight()
+            if getAgentAt(new_x, new_y) == 0:  # Only reproduce if space is free
+                predators.append(Predator(self.type))
+                predators[-1].x, predators[-1].y = new_x, new_y
+                setAgentAt(new_x, new_y, self.type)
+        return
+
+
 
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
@@ -464,9 +637,19 @@ def initWorld():
         setObjectAt(20,3+i,blockId,objectMapLevels-1)
         setObjectAt(30,3+i,blockId,objectMapLevels-1)
     
-    for i in range(nbAgents):
-        agents.append(BasicAgent(ghostId))
+    #ajout predateurs dans le monde
+    for i in range(nbPredators):
+        agents.append(Predator(predatorId))
     
+    #ajout humains dans le monde
+    for i in range(nbHumans):
+        agents.append(Human(humanId))
+
+    #ajout robots dans le monde
+
+    for i in range(nbRobots):
+        agents.append(Robot(robotId))
+
     for i in range(nbTrees):
         x = randint(0,getWorldWidth()-1)
         y = randint(0,getWorldHeight()-1)
@@ -500,7 +683,7 @@ def stepWorld( it = 0 ):
                     for neighbours in ((-1,0),(+1,0),(0,-1),(0,+1)):
                         if getObjectAt((x+neighbours[0]+worldWidth)%worldWidth,(y+neighbours[1]+worldHeight)%worldHeight) == burningTreeId:
                             setObjectAt(x,y,burningTreeId)
-                        elif getAgentAt((x+neighbours[0]+worldWidth)%worldWidth,(y+neighbours[1]+worldHeight)%worldHeight) == ghostId:
+                        elif getAgentAt((x+neighbours[0]+worldWidth)%worldWidth,(y+neighbours[1]+worldHeight)%worldHeight) == evilRobotId:
                             setObjectAt(x,y,burningTreeId)
     return
 
@@ -522,6 +705,30 @@ def stepAgents( it = 0 ):
 ###
 ###
 
+
+# Example of how to use these classes in a simulation loop
+humans = [Human(humanId) for _ in range(5)]  # Start with 5 humans
+robots = [Robot(robotId) for _ in range(3)]  # Start with 3 robots
+predators = [Predator(predatorId) for _ in range(2)]  # Start with 2 predators
+
+for _ in range(100):  # Simulate 100 time steps
+    for human in humans:
+        human.move()
+        human.reproduce(humans)
+
+    for robot in robots:
+        robot.move()
+        robot.turn_evil()
+        robot.attack_human(humans)
+        robot.attack_predator(predators)
+        robot.reproduce(robots)
+
+    for predator in predators:
+        predator.move()
+        predator.hunt(humans)
+        predator.reproduce(predators)
+
+
 timestamp = datetime.datetime.now().timestamp()
 
 loadAllImages()
@@ -531,7 +738,7 @@ displayWelcomeMessage()
 initWorld()
 initAgents()
 
-player = BasicAgent(invaderId)
+player = BasicAgent(playerId)
 
 print ("initWorld:",datetime.datetime.now().timestamp()-timestamp,"second(s)")
 timeStampStart = timeStamp = datetime.datetime.now().timestamp()
@@ -549,18 +756,22 @@ while userExit == False:
 
     #screen.blit(pygame.font.render(str(currentFps), True, (255,255,255)), (screenWidth-100, screenHeight-50))
 
+
+#
     render(it)
 
     stepWorld(it)
 
+    '''
     perdu = False
     for a in agents:
         if a.getPosition() == player.getPosition():
             perdu = True
             break
-
+    '''
     stepAgents(it)
 
+    '''
     for a in agents:
         if a.getPosition() == player.getPosition():
             perdu = True
@@ -578,7 +789,8 @@ while userExit == False:
         print ("")
         pygame.quit()
         sys.exit()
-    '''
+    
+    #reproduction des ghosts
     if it % 10 == 0:
         agents.append(BasicAgent(ghostId))
     '''
@@ -610,13 +822,13 @@ while userExit == False:
             if event.key == K_ESCAPE:
                 userExit = True
             elif event.key == pygame.K_q:
-                player.move2(0,+1);
+                player.move2(0,+1)
             elif event.key == pygame.K_z:
-                player.move2(0,-1);
+                player.move2(0,-1)
             elif event.key == pygame.K_d:
-                player.move2(+1,0);
+                player.move2(+1,0)
             elif event.key == pygame.K_s:
-                player.move2(-1,0);
+                player.move2(-1,0)
             elif event.key == pygame.K_n and pygame.key.get_mods() & pygame.KMOD_SHIFT:
                 addNoise = not(addNoise)
                 print ("noise is",addNoise) # easter-egg
