@@ -133,7 +133,7 @@ def loadAllImages():
     objectType = []
     agentType = []
 
-    tileType.append(loadImage('assets/basic111x128/platformerTile_48_ret.png')) # grass
+    tileType.append(loadImage('assets/basic111x128/platformerTile_18.png')) # grass
     tileType.append(loadImage('assets/ext/isometric-blocks/PNG/Platformer tiles/platformerTile_33.png')) # brick
     tileType.append(loadImage('assets/ext/isometric-blocks/PNG/Abstract tiles/abstractTile_12.png')) # blue grass (?)
     tileType.append(loadImage('assets/ext/isometric-blocks/PNG/Abstract tiles/abstractTile_09.png')) # grey brock
@@ -386,6 +386,7 @@ class BasicAgent:
             print ("agent of type ",str(self.type),"located at (",self.x,",",self.y,")")
         return
 
+
     def move2(self,xNew,yNew):
         success = False
         if getObjectAt( (self.x+xNew+worldWidth)%worldWidth , (self.y+yNew+worldHeight)%worldHeight ) == 0: # dont move if collide with object (note that negative values means cell cannot be walked on)
@@ -401,8 +402,10 @@ class BasicAgent:
                 print ("agent of type ",str(self.type)," moved to (",self.x,",",self.y,")")
         return
 
+
     def getType(self):
         return self.type
+
 
 agents = []
 
@@ -738,7 +741,7 @@ displayWelcomeMessage()
 initWorld()
 initAgents()
 
-player = BasicAgent(playerId)
+player = BasicAgent(playerId) #A CHANGER PARCE QUE PLUS DE BASIC AGENT
 
 print ("initWorld:",datetime.datetime.now().timestamp()-timestamp,"second(s)")
 timeStampStart = timeStamp = datetime.datetime.now().timestamp()
