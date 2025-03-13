@@ -56,9 +56,9 @@ versionTag = "2018-12-24_15h06"
 # all values are for initialisation. May change during runtime.
 nbTrees = 100 #350
 nbBurningTrees = 7 #15
-nbPredators = 0
-nbRobots = 0
-nbHumans = 0
+nbPredators = 5
+nbRobots = 5
+nbHumans = 5
 nbEvilRobots = 0
 
 # These could be used later for visuals, or logic, or just to distinguish different agents
@@ -72,16 +72,16 @@ noAgentId = 0
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 
 # display screen dimensions
-screenWidth = 930 # 1400 - 930
-screenHeight = 640 #900 - 640
+screenWidth = 1400 # 1400 - 930
+screenHeight = 900 #900 - 640
 
 # world dimensions (ie. nb of cells in total)
 worldWidth = 32#64
 worldHeight = 32#64
 
 # set surface of displayed tiles (ie. nb of cells that are rendered) -- must be superior to worldWidth and worldHeight
-viewWidth = 32 #32
-viewHeight = 32 #32
+viewWidth = 50 #32
+viewHeight = 50 #32
 
 scaleMultiplier = 0.25 # re-scaling of loaded images
 
@@ -140,8 +140,10 @@ def loadAllImages():
 
     objectType.append(None) # default -- never drawn
     objectType.append(loadImage('assets/basic111x128/tree_small_NW_ret.png')) # normal tree
-    objectType.append(loadImage('assets/basic111x128/blockHuge_N_ret.png')) # construction block
+    objectType.append(loadImage('assets/basic111x128/platformerTile_18.png')) # construction block
     objectType.append(loadImage('assets/basic111x128/tree_small_NW_ret_red.png')) # burning tree
+    objectType.append(loadImage('assets/basic111x128/building.png')) #immeuble
+    #objectType.append(loadImage('assets/basic111x128/factory.png')) #usine
 
     agentType.append(None) # default -- never drawn
     agentType.append(loadImage('assets/basic111x128/player.png')) # invader -> player
@@ -181,14 +183,17 @@ objectType = []
 agentType = []
 
 noObjectId = noAgentId = 0
+#tiles
 grassId = 0
-treeId = 1
 blockId = 2
-burningTreeId = 3
-playerId = 1
-#ghostId = 2
-#babyId = 3
 
+#objetcs
+treeId = 1
+burningTreeId = 3
+building = 4
+
+#agents
+playerId = 1
 humanId = 3
 robotId = 4
 evilRobotId = 5  # Evil robot will have a different ID
@@ -244,8 +249,8 @@ def displayWelcomeMessage():
     print ("\tf           : display frames-per-second")
     print ("\to           : decrease view surface")
     print ("\tO           : increase view surface")
-    print ("\ts           : decrease scaling")
-    print ("\tS           : increase scaling")
+    print ("\te           : decrease scaling")
+    print ("\tE           : increase scaling")
     print ("\tESC         : quit")
     print ("")
 
@@ -407,7 +412,10 @@ class BasicAgent:
         return self.type
 
 
-agents = []
+#agents = []
+predators = []
+humans = []
+robots = []
 
 
 class Human:
@@ -576,7 +584,7 @@ class Predator:
 ###
 
 def initWorld():
-    global nbTrees, nbBurningTrees, agents
+    global nbTrees, nbBurningTrees, predators, humans, robots
 
     # add a pyramid-shape building
     building1TerrainMap = [
@@ -640,18 +648,21 @@ def initWorld():
         setObjectAt(20,3+i,blockId,objectMapLevels-1)
         setObjectAt(30,3+i,blockId,objectMapLevels-1)
     
+    #ajout immeuble
+    setObjectAt(0,0,building,0)
+
     #ajout predateurs dans le monde
     for i in range(nbPredators):
-        agents.append(Predator(predatorId))
+        predators.append(Predator(predatorId))
     
     #ajout humains dans le monde
     for i in range(nbHumans):
-        agents.append(Human(humanId))
+        humans.append(Human(humanId))
 
     #ajout robots dans le monde
 
     for i in range(nbRobots):
-        agents.append(Robot(robotId))
+        robots.append(Robot(robotId))
 
     for i in range(nbTrees):
         x = randint(0,getWorldWidth()-1)
@@ -695,9 +706,16 @@ def stepWorld( it = 0 ):
 def stepAgents( it = 0 ):
     # move agent
     if it % (maxFps/10) == 0:
-        shuffle(agents)
-        for a in agents:   # shuffle agents in in-place (i.e. agents is modified)
-            a.move()
+        #shuffle(agents)
+        shuffle(predators)
+        shuffle(humans)
+        shuffle(robots)
+        for h in humans:   # shuffle agents in in-place (i.e. agents is modified)
+            h.move()
+        for p in predators :
+            p.move()
+        for r in robots :
+            r.move()
     return
 
 
@@ -710,13 +728,14 @@ def stepAgents( it = 0 ):
 
 
 # Example of how to use these classes in a simulation loop
-humans = [Human(humanId) for _ in range(5)]  # Start with 5 humans
-robots = [Robot(robotId) for _ in range(3)]  # Start with 3 robots
-predators = [Predator(predatorId) for _ in range(2)]  # Start with 2 predators
+#humans = [Human(humanId) for _ in range(5)]  # Start with 5 humans
+#robots = [Robot(robotId) for _ in range(3)]  # Start with 3 robots
+#predators = [Predator(predatorId) for _ in range(2)]  # Start with 2 predators
 
 for _ in range(100):  # Simulate 100 time steps
     for human in humans:
         human.move()
+        #IF NBARBRE < 31 (PAR EXEMPLE) THEN HUMAINS PEUVENT PAS SE REPRODUIRE
         human.reproduce(humans)
 
     for robot in robots:
@@ -870,7 +889,7 @@ while userExit == False:
                     viewHeight = viewHeight * 2
                 if verbose:
                     print ("View surface is (",viewWidth,",",viewHeight,")")
-            elif event.key == pygame.K_s and not( pygame.key.get_mods() & pygame.KMOD_SHIFT ) :
+            elif event.key == pygame.K_e and not( pygame.key.get_mods() & pygame.KMOD_SHIFT ) :
                 if scaleMultiplier > 0.125:
                     scaleMultiplier = scaleMultiplier / 2
                 if scaleMultiplier < 0.125:
@@ -878,7 +897,7 @@ while userExit == False:
                 resetImages()
                 if verbose:
                     print ("scaleMultiplier is ",scaleMultiplier)
-            elif event.key == pygame.K_s and pygame.key.get_mods() & pygame.KMOD_SHIFT:
+            elif event.key == pygame.K_e and pygame.key.get_mods() & pygame.KMOD_SHIFT:
                 if scaleMultiplier < 1.0:
                     scaleMultiplier = scaleMultiplier * 2
                 if scaleMultiplier > 1.0:
