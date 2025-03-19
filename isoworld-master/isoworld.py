@@ -1,11 +1,7 @@
 #
-# World of Isotiles
-# Author: nicolas.bredeche(at)sorbonne-universite.fr
-#
-# Started: 2018-11-17
-# purpose: basic code developped for teaching artificial life and ecological simulation at Sorbonne Univ. (SU)
-# course: L2, 2i013 Projet, "Vie Artificielle"
-# licence: CC-BY-SA
+# Symbiotica
+
+
 #
 # Requirements: Python3, Pygame
 #
@@ -43,7 +39,7 @@ from pygame.locals import *
 
 ###
 
-versionTag = "2018-12-24_15h06"
+versionTag = "2025-04-10_15h06"
 
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
@@ -60,6 +56,7 @@ nbPredators = 5
 nbRobots = 5
 nbHumans = 5
 nbEvilRobots = 0
+nbBuilding = 2
 
 # These could be used later for visuals, or logic, or just to distinguish different agents
 noAgentId = 0
@@ -76,16 +73,16 @@ screenWidth = 1400 # 1400 - 930
 screenHeight = 900 #900 - 640
 
 # world dimensions (ie. nb of cells in total)
-worldWidth = 32#64
-worldHeight = 32#64
+worldWidth = 50#64
+worldHeight = 50#64
 
 # set surface of displayed tiles (ie. nb of cells that are rendered) -- must be superior to worldWidth and worldHeight
-viewWidth = 50 #32
-viewHeight = 50 #32
+viewWidth = 50#32
+viewHeight = 50#32
 
 scaleMultiplier = 0.25 # re-scaling of loaded images
 
-objectMapLevels = 8 # number of levels for the objectMap. This determines how many objects you can pile upon one another.
+objectMapLevels = 10 # number of levels for the objectMap. This determines how many objects you can pile upon one another.
 
 # set scope of displayed tiles
 xViewOffset = 0
@@ -98,6 +95,11 @@ maxFps = 30 # set up maximum number of frames-per-second
 verbose = False # display message in console on/off
 verboseFps = True # display FPS every once in a while
 
+burning_trees = {}  # Dictionnaire qui stocke (x, y) -> temps depuis qu'il brûle
+burn_time = 5 * maxFps  # Durée avant que l'arbre brûlé apparaisse (ex: 5 secondes)
+burnt_time = 10 *maxFps
+tree_reproduction_chance = 0.005  # 1% de chance par cycle de reproduction
+proba_brule = 0.001
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
@@ -126,6 +128,12 @@ def loadImage(filename):
     image = pygame.transform.scale(image, (int(tileTotalWidthOriginal*scaleMultiplier), int(tileTotalHeightOriginal*scaleMultiplier)))
     return image
 
+def loadImageBuilding(filename):
+    global tileTotalWidthOriginal,tileTotalHeightOriginal
+    image = pygame.image.load(filename).convert_alpha()
+    image = pygame.transform.scale(image, (int(tileTotalWidthOriginal*1.5), int(tileTotalHeightOriginal*1.5)))
+    return image
+
 def loadAllImages():
     global tileType, objectType, agentType
 
@@ -133,17 +141,18 @@ def loadAllImages():
     objectType = []
     agentType = []
 
-    tileType.append(loadImage('assets/basic111x128/platformerTile_18.png')) # grass
+    tileType.append(loadImage('assets/basic111x128/platformerTile_3169.png')) # grass 
     tileType.append(loadImage('assets/ext/isometric-blocks/PNG/Platformer tiles/platformerTile_33.png')) # brick
-    tileType.append(loadImage('assets/ext/isometric-blocks/PNG/Abstract tiles/abstractTile_12.png')) # blue grass (?)
+    tileType.append(loadImage('assets/ext/isometric-blocks/PNG/Platformer tiles/platformerTile_18.png')) # je l'ai modifie 
     tileType.append(loadImage('assets/ext/isometric-blocks/PNG/Abstract tiles/abstractTile_09.png')) # grey brock
 
     objectType.append(None) # default -- never drawn
-    objectType.append(loadImage('assets/basic111x128/tree_small_NW_ret.png')) # normal tree
+    objectType.append(loadImage('assets/basic111x128/summer_tree.png')) # normal tree 
     objectType.append(loadImage('assets/basic111x128/platformerTile_18.png')) # construction block
-    objectType.append(loadImage('assets/basic111x128/tree_small_NW_ret_red.png')) # burning tree
-    objectType.append(loadImage('assets/basic111x128/building.png')) #immeuble
-    #objectType.append(loadImage('assets/basic111x128/factory.png')) #usine
+    objectType.append(loadImage('assets/basic111x128/arbre_brule.png')) # burning tree
+    objectType.append(loadImageBuilding('assets/basic111x128/building.png')) #immeuble
+    objectType.append(loadImageBuilding('assets/basic111x128/factory.png')) #usine
+    objectType.append(loadImage('assets/basic111x128/baby.png')) # burnt tree
 
     agentType.append(None) # default -- never drawn
     agentType.append(loadImage('assets/basic111x128/player.png')) # invader -> player
@@ -191,7 +200,8 @@ blockId = 2
 treeId = 1
 burningTreeId = 3
 building = 4
-
+factory = 5
+burntTreeId = 6 #len(objectType) - 1
 #agents
 playerId = 1
 humanId = 3
@@ -290,6 +300,7 @@ def getObjectAt(x,y,level=0):
 def setObjectAt(x,y,type,level=0): # negative values are possible: invisible but tangible objects (ie. no display, collision)
     if level < objectMapLevels:
         objectMap[level][y][x] = type
+    
     else:
         print ("[ERROR] setObjectMap(.) -- Cannot set object. Level does not exist.")
         return 0
@@ -585,7 +596,7 @@ class Predator:
 
 def initWorld():
     global nbTrees, nbBurningTrees, predators, humans, robots
-
+    '''
     # add a pyramid-shape building
     building1TerrainMap = [
     [ 2, 2, 2, 2 ],
@@ -599,6 +610,7 @@ def initWorld():
     [ 1, 2, 2, 1 ],
     [ 1, 1, 1, 1 ]
     ]
+    
     x_offset = 3
     y_offset = 3
     for x in range( len( building1TerrainMap[0] ) ):
@@ -606,7 +618,7 @@ def initWorld():
             setTerrainAt( x+x_offset, y+y_offset, building1TerrainMap[x][y] )
             setHeightAt( x+x_offset, y+y_offset, building1HeightMap[x][y] )
             setObjectAt( x+x_offset, y+y_offset, -1 ) # add a virtual object: not displayed, but used to forbid agent(s) to come here.
-
+    '''
     # add another pyramid-shape building with a tree on top
     building2TerrainMap = [
     [ 0, 2, 2, 2, 2, 2, 0 ],
@@ -638,7 +650,7 @@ def initWorld():
             setHeightAt( x+x_offset, y+y_offset, building2HeightMap[y][x] )
             setObjectAt( x+x_offset, y+y_offset, -1 ) # add a virtual object: not displayed, but used to forbid agent(s) to come here.
     setObjectAt( x_offset+3, y_offset+4, treeId )
-
+    '''
     for c in [(20,2),(30,2),(30,12),(20,12)]: # position des poteaux orange
         for level in range(0,objectMapLevels):
             setObjectAt(c[0],c[1],blockId,level)
@@ -647,9 +659,35 @@ def initWorld():
         setObjectAt(21+i,12,blockId,objectMapLevels-1)
         setObjectAt(20,3+i,blockId,objectMapLevels-1)
         setObjectAt(30,3+i,blockId,objectMapLevels-1)
-    
+    '''
     #ajout immeuble
-    setObjectAt(0,0,building,0)
+    building_width =  5 # Largeur 
+    building_height = 2 #et hauteur de l'immeuble en nombre de cases
+
+    for i in range(nbBuilding):
+        x = randint(0, getWorldWidth() - building_width)
+        y = randint(0, getWorldHeight() - building_height)
+
+        # Vérifie que toutes les cases sont libres
+        while any(getTerrainAt(x + dx, y + dy) != 0 or getObjectAt(x + dx, y + dy) != 0 
+                for dx in range(building_width) for dy in range(building_height)):
+            x = randint(0, getWorldWidth() - building_width)
+            y = randint(0, getWorldHeight() - building_height)
+
+        # Place l'immeuble sur toutes ses cases
+        setObjectAt(x, y, building, 7)
+        for dx in range(1,building_width):
+            for dy in range(1,building_height):
+                setObjectAt(x + dx, y + dy, 0, 7)
+
+
+    #ajout usine
+    x = 5
+    y = 35
+    setObjectAt(x,y,factory, 9)
+
+    
+
 
     #ajout predateurs dans le monde
     for i in range(nbPredators):
@@ -664,6 +702,7 @@ def initWorld():
     for i in range(nbRobots):
         robots.append(Robot(robotId))
 
+    #ajout arbres
     for i in range(nbTrees):
         x = randint(0,getWorldWidth()-1)
         y = randint(0,getWorldHeight()-1)
@@ -672,6 +711,8 @@ def initWorld():
             y = randint(0,getWorldHeight()-1)
         setObjectAt(x,y,treeId)
 
+
+    #ajout arbres brules
     for i in range(nbBurningTrees):
         x = randint(0,getWorldWidth()-1)
         y = randint(0,getWorldHeight()-1)
@@ -679,6 +720,7 @@ def initWorld():
             x = randint(0,getWorldWidth()-1)
             y = randint(0,getWorldHeight()-1)
         setObjectAt(x,y,burningTreeId)
+        burning_trees[(x,y)] = 0
 
     return
 
@@ -688,18 +730,49 @@ def initAgents():
     return
 
 ### ### ### ### ###
+def stepWorld(it=0):
+    if it % (maxFps / 10) == 0:
+        new_trees = []  # Liste des nouveaux arbres à planter
 
-def stepWorld( it = 0 ):
-    if it % (maxFps/10) == 0:
         for x in range(worldWidth):
             for y in range(worldHeight):
-                if getObjectAt(x,y) == treeId:
-                    for neighbours in ((-1,0),(+1,0),(0,-1),(0,+1)):
-                        if getObjectAt((x+neighbours[0]+worldWidth)%worldWidth,(y+neighbours[1]+worldHeight)%worldHeight) == burningTreeId:
-                            setObjectAt(x,y,burningTreeId)
-                        elif getAgentAt((x+neighbours[0]+worldWidth)%worldWidth,(y+neighbours[1]+worldHeight)%worldHeight) == evilRobotId:
-                            setObjectAt(x,y,burningTreeId)
-    return
+                # Propagation du feu
+                if getObjectAt(x, y) == treeId:
+                    for neighbours in ((-1, 0), (+1, 0), (0, -1), (0, +1)):
+                        nx = (x + neighbours[0] + worldWidth) % worldWidth
+                        ny = (y + neighbours[1] + worldHeight) % worldHeight
+                        if getObjectAt(nx, ny) == burningTreeId or getAgentAt(nx, ny) == evilRobotId:
+                            setObjectAt(x, y, burningTreeId)
+                            burning_trees[(x, y)] = it  # Enregistre le moment où il brûle
+                    if random() < proba_brule : #arbre brule aléatoirement
+                        setObjectAt(x,y,burningTreeId)
+                        burning_trees[(x, y)] = it
+
+                    # Reproduction des arbres
+                    if random() < tree_reproduction_chance:
+                        for neighbours in ((-1, 0), (+1, 0), (0, -1), (0, +1)):
+                            nx = (x + neighbours[0] + worldWidth) % worldWidth
+                            ny = (y + neighbours[1] + worldHeight) % worldHeight
+                            if getObjectAt(nx, ny) == 0 and getTerrainAt(nx, ny) == 0:  # Vérifie que la case est vide
+                                new_trees.append((nx, ny))  # Ajouter un nouvel arbre
+                                break  # Un seul nouvel arbre par cycle
+
+                                       
+                # Transformation des arbres en feu en cendres
+                elif getObjectAt(x, y) == burningTreeId:
+                    if (x, y) in burning_trees and it - burning_trees[(x, y)] >= burn_time:
+                        setObjectAt(x, y, burntTreeId)
+                        #del burning_trees[(x, y)]
+                
+                elif getObjectAt(x,y) ==  burntTreeId:
+                    if (x, y) in burning_trees and it - burning_trees[(x, y)] >= burnt_time:
+                        setObjectAt(x, y, 0)
+                        del burning_trees[(x, y)]
+                
+        # Ajouter les nouveaux arbres
+        for x, y in new_trees:
+            setObjectAt(x, y, treeId)
+
 
 ### ### ### ### ###
 
