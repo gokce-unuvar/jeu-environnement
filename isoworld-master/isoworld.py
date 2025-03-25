@@ -50,9 +50,9 @@ versionTag = "2025-04-10_15h06"
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 
 # all values are for initialisation. May change during runtime.
-nbTrees = 100 #350
+nbTrees = 131 #350
 nbBurningTrees = 7 #15
-nbPredators = 7
+nbPredators = 6 #6
 nbRobots = 4
 nbHumans = 7
 nbEvilRobots = 0
@@ -82,7 +82,7 @@ viewHeight = 50#32
 
 scaleMultiplier = 0.25 # re-scaling of loaded images
 
-objectMapLevels = 10 # number of levels for the objectMap. This determines how many objects you can pile upon one another.
+objectMapLevels = 11 # number of levels for the objectMap. This determines how many objects you can pile upon one another.
 
 # set scope of displayed tiles
 xViewOffset = 0
@@ -98,13 +98,14 @@ verboseFps = True # display FPS every once in a while
 burning_trees = {}  # Dictionnaire qui stocke (x, y) -> temps depuis qu'il brûle
 burn_time = 5 * maxFps  # Durée avant que l'arbre brûlé apparaisse (ex: 5 secondes)
 burnt_time = 10 *maxFps
-proba_rep_tree= 0.005  # 1% de chance par cycle de reproduction
-proba_brule = 0.001
-proba_evil_brule = 0.005
+proba_rep_tree= 0.0005  # 1% de chance par cycle de reproduction
+proba_brule = 0.0001
+proba_voisin_brule = 0.01
+proba_evil_brule = 0.05
 proba_turn_evil = 0.0001
-proba_rep_hum = 0.002
+proba_rep_hum = 0 #0.002
 proba_rep_pred = 0.001
-proba_fabrication_robots = 0.00002
+proba_fabrication_robots = 0.0002
 proba_attack_pred = 1
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
@@ -137,7 +138,13 @@ def loadImage(filename):
 def loadImageBuilding(filename):
     global tileTotalWidthOriginal,tileTotalHeightOriginal
     image = pygame.image.load(filename).convert_alpha()
-    image = pygame.transform.scale(image, (int(tileTotalWidthOriginal*1.5), int(tileTotalHeightOriginal*1.5)))
+    image = pygame.transform.scale(image, (int(tileTotalWidthOriginal*scaleMultiplier*7), int(tileTotalHeightOriginal*scaleMultiplier*7)))
+    return image
+
+def loadImageFactory(filename):
+    global tileTotalWidthOriginal,tileTotalHeightOriginal
+    image = pygame.image.load(filename).convert_alpha()
+    image = pygame.transform.scale(image, (int(tileTotalWidthOriginal*scaleMultiplier*6), int(tileTotalHeightOriginal*scaleMultiplier*6)))
     return image
 
 def loadAllImages():
@@ -157,7 +164,7 @@ def loadAllImages():
     objectType.append(loadImage('assets/basic111x128/platformerTile_18.png')) # construction block
     objectType.append(loadImage('assets/basic111x128/arbre_brule.png')) # burning tree
     objectType.append(loadImageBuilding('assets/basic111x128/building.png')) #immeuble
-    objectType.append(loadImageBuilding('assets/basic111x128/factory.png')) #usine
+    objectType.append(loadImageFactory('assets/basic111x128/factory.png')) #usine
     objectType.append(loadImage('assets/basic111x128/arbre_mort.png')) # burnt tree
 
     agentType.append(None) # default -- never drawn
@@ -165,7 +172,8 @@ def loadAllImages():
     agentType.append(loadImage('assets/basic111x128/wolf.png')) # purple ghost -> wolf
     agentType.append(loadImage('assets/basic111x128/woman.png')) # baby -> human
     agentType.append(loadImage('assets/basic111x128/robot.png'))
-    agentType.append(loadImage('assets/basic111x128/evil_robot.png'))
+    agentType.append(loadImage('assets/basic111x128/robot_evil.png'))
+    agentType.append(loadImage('assets/basic111x128/man.png'))
 
 
 def resetImages():
@@ -210,9 +218,10 @@ factory = 5
 burntTreeId = 6 #len(objectType) - 1
 #agents
 playerId = 1
-humanId = 3
+womanId = 3
+manId = 6
 robotId = 4
-evilRobotId = 5  # Evil robot will have a different ID
+evilRobotId = 5  # Evil robot ont une id différente
 predatorId = 2
 
 
@@ -424,6 +433,15 @@ class BasicAgent:
                 print ("agent of type ",str(self.type)," moved to (",self.x,",",self.y,")")
         return
 
+    def attack_predator(self, predators):
+        """Si gentil, tue les predateurs avec une probabilite pour proteger les humains"""
+        for predator in predators:
+            if predator.x == self.x and predator.y == self.y:
+                predators.remove(predator)  # tue le predateur
+                #nbPredators=nbPredators-1
+                break  # tue un predateur a la fois
+        return
+
 
     def getType(self):
         return self.type
@@ -520,6 +538,7 @@ class Robot:
             for human in humans:
                 if human.x == self.x and human.y == self.y:
                     humans.remove(human)  # tue l'humain
+                    #nbHumans= nbHumans-1
                     break  # Tue un humain a la fois
         return
 
@@ -529,14 +548,15 @@ class Robot:
             for predator in predators:
                 if predator.x == self.x and predator.y == self.y:
                     predators.remove(predator)  # tue le predateur
+                    #nbPredators = nbPredators -1
                     break  # tue un predateur a la fois
         return
 
     def fabrication(self, robots):
         """Les humains se reproduisent avec une probabilité"""
         if random() < proba_fabrication_robots:
-            new_x = 31
-            new_y = 31
+            new_x = 5
+            new_y = 32
             if getAgentAt(new_x, new_y) == 0:  # Only reproduce if space is free
                 robots.append(Robot(self.type))
                 robots[-1].x, robots[-1].y = new_x, new_y
@@ -577,6 +597,7 @@ class Predator:
         for human in humans :
             if human.x == self.x and human.y == self.y:
                 humans.remove(human)  #Tue l'humain
+                #nbHumans=nbHumans-1
                 break  #Tue un seul a la fois
         return
 
@@ -681,16 +702,17 @@ def initWorld():
             y = randint(0, getWorldHeight() - building_height)
 
         # Place l'immeuble sur toutes ses cases
-        setObjectAt(x, y, building, 7)
+        setObjectAt(x, y, building, 9)
         for dx in range(1,building_width):
             for dy in range(1,building_height):
-                setObjectAt(x + dx, y + dy, 0, 7)
+                setObjectAt(x + dx, y + dy, 0, 9)
 
 
     #ajout usine
     x = 5
     y = 35
-    setObjectAt(x,y,factory, 9)
+    setObjectAt(x,y,factory, 10)
+    #
 
     
 
@@ -701,18 +723,21 @@ def initWorld():
     
     #ajout humains dans le monde
     for i in range(nbHumans):
-        humans.append(Human(humanId))
+        if (random() <= 0.5) :
+            humans.append(Human(womanId))
+        else :
+            humans.append(Human(manId))
 
     #ajout robots dans le monde
 
-    for i in range(nbRobots):
+    for i in range(nbRobots) :
         robots.append(Robot(robotId))
 
     #ajout arbres
     for i in range(nbTrees):
         x = randint(0,getWorldWidth()-1)
         y = randint(0,getWorldHeight()-1)
-        while getTerrainAt(x,y) != 0 or getObjectAt(x,y) != 0:
+        while getTerrainAt(x,y) != 0 or getObjectAt(x,y) != 0 or (x==5 and y==35):
             x = randint(0,getWorldWidth()-1)
             y = randint(0,getWorldHeight()-1)
         setObjectAt(x,y,treeId)
@@ -802,10 +827,12 @@ def stepAgents( it = 0 ):
             p.reproduce(predators)
         for r in robots :
             r.move()
-            #r.turn_evil()
+            r.turn_evil()
             r.attack_predator(predators)
             r.attack_human(humans)
             r.fabrication(robots)
+
+        player.attack_predator(predators)
         
     return
 
@@ -819,7 +846,7 @@ def stepAgents( it = 0 ):
 
 
 # Example of how to use these classes in a simulation loop
-#humans = [Human(humanId) for _ in range(5)]  # Start with 5 humans
+#humans = [Human(womanId) for _ in range(5)]  # Start with 5 humans
 #robots = [Robot(robotId) for _ in range(3)]  # Start with 3 robots
 #predators = [Predator(predatorId) for _ in range(2)]  # Start with 2 predators
 '''
@@ -875,6 +902,11 @@ while userExit == False:
 
     stepWorld(it)
 
+    perdu = False
+    if (nbHumans == 0) : 
+        perdu = True
+
+
     '''
     perdu = False
     for a in agents:
@@ -884,12 +916,16 @@ while userExit == False:
     '''
     stepAgents(it)
 
+    if (nbHumans == 0) : 
+        perdu = True
+
     '''
     for a in agents:
         if a.getPosition() == player.getPosition():
             perdu = True
             break
 
+    '''
     if perdu == True:
         print ("")
         print ("#### #### #### #### ####")
@@ -903,10 +939,12 @@ while userExit == False:
         pygame.quit()
         sys.exit()
     
+    '''
     #reproduction des ghosts
     if it % 10 == 0:
         agents.append(BasicAgent(ghostId))
     '''
+
     # continuous stroke
     keys = pygame.key.get_pressed()
     if keys[pygame.K_LEFT] and not ( keys[pygame.K_LSHIFT] or keys[pygame.K_RSHIFT] ):
@@ -934,13 +972,13 @@ while userExit == False:
         if event.type == KEYUP:
             if event.key == K_ESCAPE:
                 userExit = True
-            elif event.key == pygame.K_q:
+            elif event.key == pygame.K_s:
                 player.move2(0,+1)
             elif event.key == pygame.K_z:
                 player.move2(0,-1)
             elif event.key == pygame.K_d:
                 player.move2(+1,0)
-            elif event.key == pygame.K_s:
+            elif event.key == pygame.K_q:
                 player.move2(-1,0)
             elif event.key == pygame.K_n and pygame.key.get_mods() & pygame.KMOD_SHIFT:
                 addNoise = not(addNoise)
