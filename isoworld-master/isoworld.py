@@ -50,6 +50,9 @@ versionTag = "2025-04-10_15h06"
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 
 # all values are for initialisation. May change during runtime.
+
+global nbTrees, nbBurningTrees, nbPredators, nbRobots, nbHumans, nbEvilRobots, nbBuilding
+
 nbTrees = 131 #350
 nbBurningTrees = 7 #15
 nbPredators = 6 #6
@@ -96,16 +99,17 @@ verbose = False # display message in console on/off
 verboseFps = True # display FPS every once in a while
 
 burning_trees = {}  # Dictionnaire qui stocke (x, y) -> temps depuis qu'il brûle
-burn_time = 5 * maxFps  # Durée avant que l'arbre brûlé apparaisse (ex: 5 secondes)
+burning_agents= {}
+burning_time = 5 * maxFps  # Durée avant que l'arbre brûlé apparaisse (ex: 5 secondes)
 burnt_time = 10 *maxFps
 proba_rep_tree= 0.0005  # 1% de chance par cycle de reproduction
 proba_brule = 0.0001
 proba_voisin_brule = 0.01
 proba_evil_brule = 0.05
-proba_turn_evil = 0.0001
-proba_rep_hum = 0 #0.002
+proba_turn_evil = 0.001
+proba_rep_hum = 0.004
 proba_rep_pred = 0.001
-proba_fabrication_robots = 0.0002
+proba_fabrication_robots = 0.001
 proba_attack_pred = 1
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
@@ -482,9 +486,9 @@ class Human:
             setAgentAt(self.x, self.y, self.type)
         return
 
-
     def reproduce(self, humans):
         """Les humains se reproduisent avec une probabilité"""
+        global nbHumans
         if random() < proba_rep_hum and nbTrees > 15:
             new_x = (self.x + [-1, 0, 1][randint(0, 2)] + getWorldWidth()) % getWorldWidth()
             new_y = (self.y + [-1, 0, 1][randint(0, 2)] + getWorldHeight()) % getWorldHeight()
@@ -492,6 +496,7 @@ class Human:
                 humans.append(Human(self.type))
                 humans[-1].x, humans[-1].y = new_x, new_y
                 setAgentAt(new_x, new_y, self.type)
+                nbHumans+=1
         return 
 
 
@@ -527,33 +532,41 @@ class Robot:
 
     def turn_evil(self):
         """Peux de chance de devenir méchant et d'attaquer les humains"""
-        if not self.evil and random() < proba_turn_evil:
+        global nbEvilRobots
+
+        if not self.evil and random() < proba_turn_evil and nbRobots > 5 :
             self.evil = True
             self.type = evilRobotId  # Change appearance
+            nbEvilRobots+=1
         return
 
     def attack_human(self, humans):
         """Si mechant, tue l'humain"""
+        global nbHumans
+
         if self.evil:
             for human in humans:
                 if human.x == self.x and human.y == self.y:
                     humans.remove(human)  # tue l'humain
-                    #nbHumans= nbHumans-1
+                    nbHumans-=1
                     break  # Tue un humain a la fois
         return
 
     def attack_predator(self, predators):
         """Si gentil, tue les predateurs avec une probabilite pour proteger les humains"""
+        global nbPredators
+
         if not(self.evil) and random() < proba_attack_pred :
             for predator in predators:
                 if predator.x == self.x and predator.y == self.y:
                     predators.remove(predator)  # tue le predateur
-                    #nbPredators = nbPredators -1
+                    nbPredators -=1
                     break  # tue un predateur a la fois
         return
 
     def fabrication(self, robots):
         """Les humains se reproduisent avec une probabilité"""
+        global nbRobots
         if random() < proba_fabrication_robots:
             new_x = 5
             new_y = 32
@@ -561,6 +574,7 @@ class Robot:
                 robots.append(Robot(self.type))
                 robots[-1].x, robots[-1].y = new_x, new_y
                 setAgentAt(new_x, new_y, self.type)
+                nbRobots+=1
         return        
 
 class Predator:
@@ -594,15 +608,18 @@ class Predator:
 
     def hunt(self, humans):
         """Tue un humain si sur la même case."""
+        global nbHumans
+
         for human in humans :
             if human.x == self.x and human.y == self.y:
                 humans.remove(human)  #Tue l'humain
-                #nbHumans=nbHumans-1
+                nbHumans-=1
                 break  #Tue un seul a la fois
         return
 
     def reproduce(self, predators):
         """Les humains se reproduisent avec une probabilité"""
+        global nbPredators
         if random() < proba_rep_pred:
             new_x = (self.x + [-1, 0, 1][randint(0, 2)] + getWorldWidth()) % getWorldWidth()
             new_y = (self.y + [-1, 0, 1][randint(0, 2)] + getWorldHeight()) % getWorldHeight()
@@ -610,6 +627,7 @@ class Predator:
                 predators.append(Predator(self.type))
                 predators[-1].x, predators[-1].y = new_x, new_y
                 setAgentAt(new_x, new_y, self.type)
+                nbPredators+=1
         return
 
 
@@ -762,25 +780,34 @@ def initAgents():
 
 ### ### ### ### ###
 def stepWorld(it=0):
+    global nbTrees, nbBurningTrees
     if it % (maxFps / 10) == 0:
         new_trees = []  # Liste des nouveaux arbres à planter
 
         for x in range(worldWidth):
             for y in range(worldHeight):
                 # Propagation du feu
-                if getObjectAt(x, y) == treeId:
+                if getObjectAt(x, y) == treeId :
                     for neighbours in ((-1, 0), (+1, 0), (0, -1), (0, +1)):
                         nx = (x + neighbours[0] + worldWidth) % worldWidth
                         ny = (y + neighbours[1] + worldHeight) % worldHeight
                         if getObjectAt(nx, ny) == burningTreeId :
                             setObjectAt(x, y, burningTreeId)
                             burning_trees[(x, y)] = it  # Enregistre le moment où il brûle
+                            nbBurningTrees += 1
+                            nbTrees-=1
+
                         elif getAgentAt(nx, ny) == evilRobotId and random()< proba_evil_brule:
                             setObjectAt(x, y, burningTreeId)
-                            burning_trees[(x, y)] = it 
+                            burning_trees[(x, y)] = it
+                            nbBurningTrees +=1
+                            nbTrees-=1
+
                     if random() < proba_brule : #arbre brule aléatoirement
                         setObjectAt(x,y,burningTreeId)
                         burning_trees[(x, y)] = it
+                        nbBurningTrees+=1
+                        nbTrees-=1
 
                     # Reproduction des arbres
                     if random() < proba_rep_tree and nbHumans < 15 :
@@ -789,13 +816,15 @@ def stepWorld(it=0):
                             ny = (y + neighbours[1] + worldHeight) % worldHeight
                             if getObjectAt(nx, ny) == 0 and getTerrainAt(nx, ny) == 0:  # Vérifie que la case est vide
                                 new_trees.append((nx, ny))  # Ajouter un nouvel arbre
+                                nbTrees+=1
                                 break  # Un seul nouvel arbre par cycle
+
 
 
                                        
                 # Transformation des arbres en feu en cendres
                 elif getObjectAt(x, y) == burningTreeId:
-                    if (x, y) in burning_trees and it - burning_trees[(x, y)] >= burn_time:
+                    if (x, y) in burning_trees and it - burning_trees[(x, y)] >= burning_time:
                         setObjectAt(x, y, burntTreeId)
                         #del burning_trees[(x, y)]
                 
@@ -803,6 +832,7 @@ def stepWorld(it=0):
                     if (x, y) in burning_trees and it - burning_trees[(x, y)] >= burnt_time:
                         setObjectAt(x, y, 0)
                         del burning_trees[(x, y)]
+                        nbBurningTrees-=1
                 
         # Ajouter les nouveaux arbres
         for x, y in new_trees:
@@ -812,6 +842,7 @@ def stepWorld(it=0):
 ### ### ### ### ###
 
 def stepAgents( it = 0 ):
+    global nbHumans
     # move agent
     if it % (maxFps/10) == 0:
         #shuffle(agents)
@@ -915,6 +946,9 @@ while userExit == False:
             break
     '''
     stepAgents(it)
+
+    print("nb human : ", nbHumans, "nb Predateurs : ", nbPredators, "nb robots", nbRobots, "nb evil : ", nbEvilRobots)
+    print("nb arbres : ", nbTrees, "nb burning trees : ", nbBurningTrees)
 
     if (nbHumans == 0) : 
         perdu = True
