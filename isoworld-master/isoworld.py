@@ -107,7 +107,7 @@ proba_brule = 0.0001
 proba_voisin_brule = 0.01
 proba_evil_brule = 0.05
 proba_turn_evil = 0.001
-proba_rep_hum = 0.004
+proba_rep_hum = 0.001
 proba_rep_pred = 0.001
 proba_fabrication_robots = 0.001
 proba_attack_pred = 1
@@ -158,10 +158,10 @@ def loadAllImages():
     objectType = []
     agentType = []
 
-    tileType.append(loadImage('assets/basic111x128/platformerTile_3169.png')) # grass 
-    tileType.append(loadImage('assets/ext/isometric-blocks/PNG/Platformer tiles/platformerTile_33.png')) # brick
-    tileType.append(loadImage('assets/ext/isometric-blocks/PNG/Platformer tiles/platformerTile_18.png')) # je l'ai modifie 
-    tileType.append(loadImage('assets/ext/isometric-blocks/PNG/Abstract tiles/abstractTile_09.png')) # grey brock
+    tileType.append(loadImage('assets/basic111x128/platformerTile_3169.png')) # purple grass 
+    tileType.append(loadImage('assets/basic111x128/platformerTile_33.png')) # grey brock
+    tileType.append(loadImage('assets/ext/isometric-blocks/PNG/Platformer tiles/platformerTile_18.png')) # light purple
+    tileType.append(loadImage('assets/ext/isometric-blocks/PNG/Abstract tiles/abstractTile_09.png')) # dark grey brock
 
     objectType.append(None) # default -- never drawn
     objectType.append(loadImage('assets/basic111x128/summer_tree.png')) # normal tree 
@@ -212,8 +212,8 @@ agentType = []
 noObjectId = noAgentId = 0
 #tiles
 grassId = 0
+roadId = 1
 blockId = 2
-
 #objetcs
 treeId = 1
 burningTreeId = 3
@@ -695,6 +695,7 @@ def initWorld():
             setHeightAt( x+x_offset, y+y_offset, building2HeightMap[y][x] )
             setObjectAt( x+x_offset, y+y_offset, -1 ) # add a virtual object: not displayed, but used to forbid agent(s) to come here.
     setObjectAt( x_offset+3, y_offset+4, treeId )
+
     '''
     for c in [(20,2),(30,2),(30,12),(20,12)]: # position des poteaux orange
         for level in range(0,objectMapLevels):
@@ -705,6 +706,28 @@ def initWorld():
         setObjectAt(20,3+i,blockId,objectMapLevels-1)
         setObjectAt(30,3+i,blockId,objectMapLevels-1)
     '''
+
+    #ajout route
+
+    setTerrainAt(6,34,1)
+    setTerrainAt(6,35,1)
+    setTerrainAt(7,35,1)
+    setTerrainAt(8,35,1)
+    setTerrainAt(9,35,1)
+    setTerrainAt(10,35,1)
+    setTerrainAt(11,35,1)
+    setTerrainAt(12,35,1)
+    setTerrainAt(13,35,1)
+    setTerrainAt(14,35,1)
+    setTerrainAt(15,35,1)
+    setTerrainAt(16,35,1)
+    setTerrainAt(17,35,1)
+    setTerrainAt(18,35,1)
+    setTerrainAt(19,35,1)
+    setTerrainAt(20,35,1)
+    setTerrainAt(21,35,1)
+    setTerrainAt(22,35,1)
+
     #ajout immeuble
     building_width =  5 # Largeur 
     building_height = 2 #et hauteur de l'immeuble en nombre de cases
@@ -730,7 +753,7 @@ def initWorld():
     x = 5
     y = 35
     setObjectAt(x,y,factory, 10)
-    #
+    
 
     
 
