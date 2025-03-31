@@ -178,6 +178,8 @@ def loadAllImages():
     agentType.append(loadImage('assets/basic111x128/robot.png'))
     agentType.append(loadImage('assets/basic111x128/robot_evil.png'))
     agentType.append(loadImage('assets/basic111x128/man.png'))
+    agentType.append(loadImage('assets/basic111x128/flame.png'))
+
 
 
 def resetImages():
@@ -227,6 +229,7 @@ manId = 6
 robotId = 4
 evilRobotId = 5  # Evil robot ont une id différente
 predatorId = 2
+flameId = 7
 
 
 ###
@@ -479,12 +482,12 @@ class Human:
             xNew = (self.x + [-1, +1][randint(0, 1)] + getWorldWidth()) % getWorldWidth()
         else:
             yNew = (self.y + [-1, +1][randint(0, 1)] + getWorldHeight()) % getWorldHeight()
-
-        if getObjectAt(xNew, yNew) == 0:  # Can only move if no obstacle
-            setAgentAt(self.x, self.y, noAgentId)
-            self.x, self.y = xNew, yNew
-            setAgentAt(self.x, self.y, self.type)
-        return
+        if(getAgentAt(self.x, self.y)!=flameId):
+            if getObjectAt(xNew, yNew) == 0:  # Can only move if no obstacle
+                setAgentAt(self.x, self.y, noAgentId)
+                self.x, self.y = xNew, yNew
+                setAgentAt(self.x, self.y, self.type)
+            return
 
     def reproduce(self, humans):
         """Les humains se reproduisent avec une probabilité"""
@@ -707,26 +710,6 @@ def initWorld():
         setObjectAt(30,3+i,blockId,objectMapLevels-1)
     '''
 
-    #ajout route
-
-    setTerrainAt(6,34,1)
-    setTerrainAt(6,35,1)
-    setTerrainAt(7,35,1)
-    setTerrainAt(8,35,1)
-    setTerrainAt(9,35,1)
-    setTerrainAt(10,35,1)
-    setTerrainAt(11,35,1)
-    setTerrainAt(12,35,1)
-    setTerrainAt(13,35,1)
-    setTerrainAt(14,35,1)
-    setTerrainAt(15,35,1)
-    setTerrainAt(16,35,1)
-    setTerrainAt(17,35,1)
-    setTerrainAt(18,35,1)
-    setTerrainAt(19,35,1)
-    setTerrainAt(20,35,1)
-    setTerrainAt(21,35,1)
-    setTerrainAt(22,35,1)
 
     #ajout immeuble
     building_width =  5 # Largeur 
@@ -803,7 +786,7 @@ def initAgents():
 
 ### ### ### ### ###
 def stepWorld(it=0):
-    global nbTrees, nbBurningTrees
+    global nbTrees, nbBurningTrees, nbHumans, nbEvilRobots, nbRobots, nbPredators
     if it % (maxFps / 10) == 0:
         new_trees = []  # Liste des nouveaux arbres à planter
 
@@ -842,9 +825,7 @@ def stepWorld(it=0):
                                 nbTrees+=1
                                 break  # Un seul nouvel arbre par cycle
 
-
-
-                                       
+                                 
                 # Transformation des arbres en feu en cendres
                 elif getObjectAt(x, y) == burningTreeId:
                     if (x, y) in burning_trees and it - burning_trees[(x, y)] >= burning_time:
@@ -856,7 +837,35 @@ def stepWorld(it=0):
                         setObjectAt(x, y, 0)
                         del burning_trees[(x, y)]
                         nbBurningTrees-=1
+
+                # Transformation des arbres en feu en cendres
+                elif getAgentAt(x,y) == 2 or getAgentAt(x,y) == 3 or getAgentAt(x,y) == 4 or getAgentAt(x,y) == 5 or getAgentAt(x,y) == 6 :
+                    print("c'est bien un agent ^^")
+                    for neighbours in ((-1, 0), (+1, 0), (0, -1), (0, +1)):
+                        nx = (x + neighbours[0] + worldWidth) % worldWidth
+                        ny = (y + neighbours[1] + worldHeight) % worldHeight
+                        if getObjectAt(nx, ny) == burningTreeId :
+                            setAgentAt(x, y, flameId)
+                            burning_agents[(x, y)] = it  # Enregistre le moment où il brûle
                 
+
+                elif getAgentAt(x,y) ==  flameId:
+                    if (x, y) in burning_agents and it - burning_agents[(x, y)] >= burning_time:
+                        setAgentAt(x, y, 0)
+                        del burning_agents[(x, y)]
+                        if getAgentAt(x,y) == 2 :
+                            nbPredators-=1
+                            predators.remove(getAgentAt(x,y))
+                        elif getAgentAt(x,y) == 3 or getAgentAt(x,y) == 6 :
+                            nbHumans-=1
+                            humans.remove(getAgentAt(x,y))
+                        elif getAgentAt(x,y) == 4 : 
+                            nbRobots-=1
+                            robots.remove(getAgentAt(x,y))
+                        elif getAgentAt(x,y) == 5 :
+                            nbEvilRobots-=1
+                            robots.remove(getAgentAt(x,y))
+
         # Ajouter les nouveaux arbres
         for x, y in new_trees:
             setObjectAt(x, y, treeId)
@@ -969,9 +978,6 @@ while userExit == False:
             break
     '''
     stepAgents(it)
-
-    print("nb human : ", nbHumans, "nb Predateurs : ", nbPredators, "nb robots", nbRobots, "nb evil : ", nbEvilRobots)
-    print("nb arbres : ", nbTrees, "nb burning trees : ", nbBurningTrees)
 
     if (nbHumans == 0) : 
         perdu = True
