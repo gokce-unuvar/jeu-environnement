@@ -521,7 +521,7 @@ class Human:
     def brunt(self,humans) :
         global nbHumans
         if self.type == flameId :
-            humans.remove(human)
+            humans.remove(humans)
             nbHumans-=1
 
 
@@ -881,6 +881,19 @@ def stepWorld(it=0):
                             Human(flameId)
                         del burning_agents[(x, y)]
                         setAgentAt(x,y,0)
+                '''
+                for x in range(3, 12): 
+                    if getObjectAt(x, 26) == treeId:
+                        setObjectAt(x, 26, burningTreeId)
+                    if getObjectAt(x, 36) == treeId:
+                        setObjectAt(x, 36, burningTreeId)  
+                
+                for y in range(26, 37):  
+                    if getObjectAt(3, y) == treeId:
+                        setObjectAt(3, y, burningTreeId) 
+                    if getObjectAt(11, y) == treeId:
+                        setObjectAt(11, y, burningTreeId) 
+                '''
 
         # Ajouter les nouveaux arbres
         for x, y in new_trees:
