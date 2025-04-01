@@ -102,6 +102,7 @@ burning_trees = {}  # Dictionnaire qui stocke (x, y) -> temps depuis qu'il brûl
 burning_agents= {}
 burning_time = 5 * maxFps  # Durée avant que l'arbre brûlé apparaisse (ex: 5 secondes)
 burnt_time = 10 *maxFps
+earthq_time = 40 *maxFps
 proba_rep_tree= 0.0005  # 1% de chance par cycle de reproduction
 proba_brule = 0.0001
 proba_voisin_brule = 0.01
@@ -111,6 +112,7 @@ proba_rep_hum = 0.001
 proba_rep_pred = 0.001
 proba_fabrication_robots = 0.001
 proba_attack_pred = 1
+proba_earthq = 0.00009
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
@@ -354,15 +356,22 @@ def render( it = 0 ):
             yTile = ( yViewOffset + y + getWorldHeight() ) % getWorldHeight()
 
             heightNoise = 0
+        
             if addNoise == True: # add sinusoidal noise on height positions
+                
+                
                 if it%int(math.pi*2*199) < int(math.pi*199):
                     # v1.
                     heightNoise = math.sin(it/23+yTile) * math.sin(it/7+xTile) * heightMultiplier/10 + math.cos(it/17+yTile+xTile) * math.cos(it/31+yTile) * heightMultiplier
                     heightNoise = math.sin(it/199) * heightNoise
+
+                #FUTURE INONDATION
+                '''
                 else:
                     # v2.
                     heightNoise = math.sin(it/13+yTile*19) * math.cos(it/17+xTile*41) * heightMultiplier
                     heightNoise = math.sin(it/199) * heightNoise
+                '''
 
             height = getHeightAt( xTile , yTile ) * heightMultiplier + heightNoise
 
@@ -442,10 +451,11 @@ class BasicAgent:
 
     def attack_predator(self, predators):
         """Si gentil, tue les predateurs avec une probabilite pour proteger les humains"""
+        global nbPredators
         for predator in predators:
             if predator.x == self.x and predator.y == self.y:
                 predators.remove(predator)  # tue le predateur
-                #nbPredators=nbPredators-1
+                nbPredators-=1
                 break  # tue un predateur a la fois
         return
 
@@ -501,6 +511,19 @@ class Human:
                 setAgentAt(new_x, new_y, self.type)
                 nbHumans+=1
         return 
+    
+    def burning(self):
+        """Les humains sont brules par les arbres"""
+        global nbHumans
+        self.type = flameId
+        return
+
+    def brunt(self,humans) :
+        global nbHumans
+        if self.type == flameId :
+            humans.remove(human)
+            nbHumans-=1
+
 
 
 class Robot:
@@ -644,12 +667,12 @@ class Predator:
 
 def initWorld():
     global nbTrees, nbBurningTrees, predators, humans, robots
-    '''
+    
     # add a pyramid-shape building
     building1TerrainMap = [
     [ 2, 2, 2, 2 ],
-    [ 2, 3, 3, 2 ],
-    [ 2, 3, 3, 2 ],
+    [ 2, 2, 2, 2 ],
+    [ 2, 2, 2, 2 ],
     [ 2, 2, 2, 2 ]
     ]
     building1HeightMap = [
@@ -666,7 +689,7 @@ def initWorld():
             setTerrainAt( x+x_offset, y+y_offset, building1TerrainMap[x][y] )
             setHeightAt( x+x_offset, y+y_offset, building1HeightMap[x][y] )
             setObjectAt( x+x_offset, y+y_offset, -1 ) # add a virtual object: not displayed, but used to forbid agent(s) to come here.
-    '''
+    
     # add another pyramid-shape building with a tree on top
     building2TerrainMap = [
     [ 0, 2, 2, 2, 2, 2, 0 ],
@@ -699,16 +722,6 @@ def initWorld():
             setObjectAt( x+x_offset, y+y_offset, -1 ) # add a virtual object: not displayed, but used to forbid agent(s) to come here.
     setObjectAt( x_offset+3, y_offset+4, treeId )
 
-    '''
-    for c in [(20,2),(30,2),(30,12),(20,12)]: # position des poteaux orange
-        for level in range(0,objectMapLevels):
-            setObjectAt(c[0],c[1],blockId,level)
-    for i in range(9):
-        setObjectAt(21+i,2,blockId,objectMapLevels-1)
-        setObjectAt(21+i,12,blockId,objectMapLevels-1)
-        setObjectAt(20,3+i,blockId,objectMapLevels-1)
-        setObjectAt(30,3+i,blockId,objectMapLevels-1)
-    '''
 
 
     #ajout immeuble
@@ -838,24 +851,25 @@ def stepWorld(it=0):
                         del burning_trees[(x, y)]
                         nbBurningTrees-=1
 
-                # Transformation des arbres en feu en cendres
+                # Les humains brulent
                 elif getAgentAt(x,y) == 2 or getAgentAt(x,y) == 3 or getAgentAt(x,y) == 4 or getAgentAt(x,y) == 5 or getAgentAt(x,y) == 6 :
-                    print("c'est bien un agent ^^")
+
                     for neighbours in ((-1, 0), (+1, 0), (0, -1), (0, +1)):
                         nx = (x + neighbours[0] + worldWidth) % worldWidth
                         ny = (y + neighbours[1] + worldHeight) % worldHeight
                         if getObjectAt(nx, ny) == burningTreeId :
                             setAgentAt(x, y, flameId)
+                            
                             burning_agents[(x, y)] = it  # Enregistre le moment où il brûle
                 
-
+                #Les humains disparaissent 
                 elif getAgentAt(x,y) ==  flameId:
                     if (x, y) in burning_agents and it - burning_agents[(x, y)] >= burning_time:
-                        setAgentAt(x, y, 0)
-                        del burning_agents[(x, y)]
+                        
                         if getAgentAt(x,y) == 2 :
                             nbPredators-=1
                             predators.remove(getAgentAt(x,y))
+                            break
                         elif getAgentAt(x,y) == 3 or getAgentAt(x,y) == 6 :
                             nbHumans-=1
                             humans.remove(getAgentAt(x,y))
@@ -864,7 +878,9 @@ def stepWorld(it=0):
                             robots.remove(getAgentAt(x,y))
                         elif getAgentAt(x,y) == 5 :
                             nbEvilRobots-=1
-                            robots.remove(getAgentAt(x,y))
+                            Human(flameId)
+                        del burning_agents[(x, y)]
+                        setAgentAt(x,y,0)
 
         # Ajouter les nouveaux arbres
         for x, y in new_trees:
@@ -877,11 +893,12 @@ def stepAgents( it = 0 ):
     global nbHumans
     # move agent
     if it % (maxFps/10) == 0:
-        #shuffle(agents)
+        
         shuffle(predators)
         shuffle(humans)
         shuffle(robots)
         for h in humans:   # shuffle agents in in-place (i.e. agents is modified)
+            
             h.move()
             h.reproduce(humans)
         for p in predators :
@@ -907,30 +924,6 @@ def stepAgents( it = 0 ):
 ###
 ###
 
-
-# Example of how to use these classes in a simulation loop
-#humans = [Human(womanId) for _ in range(5)]  # Start with 5 humans
-#robots = [Robot(robotId) for _ in range(3)]  # Start with 3 robots
-#predators = [Predator(predatorId) for _ in range(2)]  # Start with 2 predators
-'''
-for _ in range(100):  # Simulate 100 time steps
-    for human in humans:
-        human.move()
-        
-        human.reproduce(humans)
-
-    for robot in robots:
-        robot.move()
-        robot.turn_evil()
-        robot.attack_human(humans)
-        robot.attack_predator(predators)
-        robot.reproduce(robots)
-
-    for predator in predators:
-        predator.move()
-        predator.hunt(humans)
-        predator.reproduce(predators)
-'''
 
 timestamp = datetime.datetime.now().timestamp()
 
@@ -960,7 +953,16 @@ while userExit == False:
     #screen.blit(pygame.font.render(str(currentFps), True, (255,255,255)), (screenWidth-100, screenHeight-50))
 
 
-#
+#ajout de la proba du earthquake
+    earthq = 0
+    if random() < proba_earthq or nbEvilRobots > 15:
+        addNoise = True
+        earthq = it
+#arret earthquake timer
+    if earthq >= earthq_time:
+        addNoise=False  
+    
+    
     render(it)
 
     stepWorld(it)
