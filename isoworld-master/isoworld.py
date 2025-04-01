@@ -103,6 +103,7 @@ burning_agents= {}
 burning_time = 5 * maxFps  # Durée avant que l'arbre brûlé apparaisse (ex: 5 secondes)
 burnt_time = 10 *maxFps
 earthq_time = 40 *maxFps
+flood_time=40*maxFps
 proba_rep_tree= 0.0005  # 1% de chance par cycle de reproduction
 proba_brule = 0.0001
 proba_voisin_brule = 0.01
@@ -112,7 +113,9 @@ proba_rep_hum = 0.001
 proba_rep_pred = 0.001
 proba_fabrication_robots = 0.001
 proba_attack_pred = 1
-proba_earthq = 0.00009
+proba_earthq = 0.0009
+proba_flood=0.0000009
+
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
@@ -172,6 +175,7 @@ def loadAllImages():
     objectType.append(loadImageBuilding('assets/basic111x128/building.png')) #immeuble
     objectType.append(loadImageFactory('assets/basic111x128/factory.png')) #usine
     objectType.append(loadImage('assets/basic111x128/arbre_mort.png')) # burnt tree
+    objectType.append(loadImage('assets/basic111x128/abstractTile_26.png')) # water
 
     agentType.append(None) # default -- never drawn
     agentType.append(loadImage('assets/basic111x128/player.png')) # invader -> player
@@ -224,6 +228,7 @@ burningTreeId = 3
 building = 4
 factory = 5
 burntTreeId = 6 #len(objectType) - 1
+waterId=7
 #agents
 playerId = 1
 womanId = 3
@@ -790,6 +795,15 @@ def initWorld():
         setObjectAt(x,y,burningTreeId)
         burning_trees[(x,y)] = 0
 
+    for x in range(13,20):
+        for y in range(3,10):
+            setObjectAt(x,y,waterId)
+            setObjectAt(13,3,noObjectId)
+            setObjectAt(13,9,noObjectId)
+            setObjectAt(19,3,noObjectId)
+            setObjectAt(19,9,noObjectId)
+            setHeightAt(x,y,-1)
+
     return
 
 ### ### ### ### ###
@@ -805,7 +819,13 @@ def stepWorld(it=0):
 
         for x in range(worldWidth):
             for y in range(worldHeight):
-                # Propagation du feu
+
+                # l'inondation
+                if random() < proba_flood:
+                    if getObjectAt(x, y) == 0:  # Vérifie que la case est vide
+                        setObjectAt(x, y, waterId)  # Remplace par de l'eau
+                        setHeightAt(x, y, 0) 
+
                 if getObjectAt(x, y) == treeId :
                     for neighbours in ((-1, 0), (+1, 0), (0, -1), (0, +1)):
                         nx = (x + neighbours[0] + worldWidth) % worldWidth
@@ -873,9 +893,11 @@ def stepWorld(it=0):
                         elif getAgentAt(x,y) == 3 or getAgentAt(x,y) == 6 :
                             nbHumans-=1
                             humans.remove(getAgentAt(x,y))
+                            break
                         elif getAgentAt(x,y) == 4 : 
                             nbRobots-=1
                             robots.remove(getAgentAt(x,y))
+                            break
                         elif getAgentAt(x,y) == 5 :
                             nbEvilRobots-=1
                             Human(flameId)
@@ -893,7 +915,7 @@ def stepWorld(it=0):
                         setObjectAt(3, y, burningTreeId) 
                     if getObjectAt(11, y) == treeId:
                         setObjectAt(11, y, burningTreeId) 
-                '''
+                ''' # pour mettre le feu a cote de l'usine mais marche pas
 
         # Ajouter les nouveaux arbres
         for x, y in new_trees:
@@ -971,6 +993,13 @@ while userExit == False:
     if random() < proba_earthq or nbEvilRobots > 15:
         addNoise = True
         earthq = it
+        '''
+        for y in range(getWorldHeight()):
+            for x in range(getWorldWidth()):
+                if getObjectAt(x, y, 0) in [building, factory]:  # Remplace avec les IDs des bâtiments
+                    if random() < 0.5:  # 50% de chance qu'un bâtiment s'effondre
+                        setObjectAt(x, y, 0)  # Supprime le bâtiment
+        '''#pour supprimer l'immeuble et l'usine pendant le tremblement de terre mais marche pas
 #arret earthquake timer
     if earthq >= earthq_time:
         addNoise=False  
