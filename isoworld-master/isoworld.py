@@ -113,8 +113,8 @@ proba_rep_hum = 0.001
 proba_rep_pred = 0.001
 proba_fabrication_robots = 0.001
 proba_attack_pred = 1
-proba_earthq = 0.0009
-proba_flood=0.0000009
+proba_earthq = 0.00009
+proba_flood=0.0009
 
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
@@ -167,6 +167,7 @@ def loadAllImages():
     tileType.append(loadImage('assets/basic111x128/platformerTile_33.png')) # grey brock
     tileType.append(loadImage('assets/ext/isometric-blocks/PNG/Platformer tiles/platformerTile_18.png')) # light purple
     tileType.append(loadImage('assets/ext/isometric-blocks/PNG/Abstract tiles/abstractTile_09.png')) # dark grey brock
+    tileType.append(loadImage('assets/basic111x128/abstractTile_26.png')) # water
 
     objectType.append(None) # default -- never drawn
     objectType.append(loadImage('assets/basic111x128/summer_tree.png')) # normal tree 
@@ -175,7 +176,7 @@ def loadAllImages():
     objectType.append(loadImageBuilding('assets/basic111x128/building.png')) #immeuble
     objectType.append(loadImageFactory('assets/basic111x128/factory.png')) #usine
     objectType.append(loadImage('assets/basic111x128/arbre_mort.png')) # burnt tree
-    objectType.append(loadImage('assets/basic111x128/abstractTile_26.png')) # water
+    
 
     agentType.append(None) # default -- never drawn
     agentType.append(loadImage('assets/basic111x128/player.png')) # invader -> player
@@ -222,13 +223,16 @@ noObjectId = noAgentId = 0
 grassId = 0
 roadId = 1
 blockId = 2
+waterId=4
 #objetcs
 treeId = 1
+constructionBlockId = 2
 burningTreeId = 3
-building = 4
-factory = 5
+buildingId = 4
+factoryId = 5
 burntTreeId = 6 #len(objectType) - 1
-waterId=7
+
+
 #agents
 playerId = 1
 womanId = 3
@@ -744,7 +748,7 @@ def initWorld():
             y = randint(0, getWorldHeight() - building_height)
 
         # Place l'immeuble sur toutes ses cases
-        setObjectAt(x, y, building, 9)
+        setObjectAt(x, y, buildingId, 9)
         for dx in range(1,building_width):
             for dy in range(1,building_height):
                 setObjectAt(x + dx, y + dy, 0, 9)
@@ -753,11 +757,7 @@ def initWorld():
     #ajout usine
     x = 5
     y = 35
-    setObjectAt(x,y,factory, 10)
-    
-
-    
-
+    setObjectAt(x,y,factoryId, 10)
 
     #ajout predateurs dans le monde
     for i in range(nbPredators):
@@ -795,15 +795,16 @@ def initWorld():
         setObjectAt(x,y,burningTreeId)
         burning_trees[(x,y)] = 0
 
+    #ajout lac
     for x in range(13,20):
         for y in range(3,10):
-            setObjectAt(x,y,waterId)
-            setObjectAt(13,3,noObjectId)
-            setObjectAt(13,9,noObjectId)
-            setObjectAt(19,3,noObjectId)
-            setObjectAt(19,9,noObjectId)
-            setHeightAt(x,y,-1)
-
+            setTerrainAt(x,y,waterId)
+            setObjectAt(x,y,-1)
+            #setHeightAt(x,y,-1)
+    setTerrainAt(13,3,grassId)
+    setTerrainAt(13,9,grassId)
+    setTerrainAt(19,3,grassId)
+    setTerrainAt(19,9,grassId)
     return
 
 ### ### ### ### ###
@@ -817,14 +818,30 @@ def stepWorld(it=0):
     if it % (maxFps / 10) == 0:
         new_trees = []  # Liste des nouveaux arbres à planter
 
+        # l'inondation
+        setTerrainAt(13,3,waterId)
+        setObjectAt(13,3,-1)
+        setTerrainAt(13,9,waterId)
+        setObjectAt(13,9,-1)
+        setTerrainAt(19,3,waterId)
+        setObjectAt(19,3,-1)
+        setTerrainAt(19,9,waterId)
+        setObjectAt(19,9,-1)
+        for x in range(21, ):
+            for y in range(10,(9+ worldWidth) % worldWidth) :
+                if random() < 1 :
+                    setTerrainAt(x,y,waterId)
+                    setObjectAt(x,y,-1)
+        
+            #if getObjectAt(x, y) == 0:  # Vérifie que la case est vide
+            setTerrainAt(x, y, 4)  # Remplace par de l'eau
+            setHeightAt(x, y, 1) 
+
+
+
         for x in range(worldWidth):
             for y in range(worldHeight):
 
-                # l'inondation
-                if random() < proba_flood:
-                    if getObjectAt(x, y) == 0:  # Vérifie que la case est vide
-                        setObjectAt(x, y, waterId)  # Remplace par de l'eau
-                        setHeightAt(x, y, 0) 
 
                 if getObjectAt(x, y) == treeId :
                     for neighbours in ((-1, 0), (+1, 0), (0, -1), (0, +1)):
@@ -960,6 +977,7 @@ def stepAgents( it = 0 ):
 ###
 
 
+
 timestamp = datetime.datetime.now().timestamp()
 
 loadAllImages()
@@ -994,12 +1012,15 @@ while userExit == False:
         addNoise = True
         earthq = it
         '''
-        for y in range(getWorldHeight()):
-            for x in range(getWorldWidth()):
-                if getObjectAt(x, y, 0) in [building, factory]:  # Remplace avec les IDs des bâtiments
-                    if random() < 0.5:  # 50% de chance qu'un bâtiment s'effondre
-                        setObjectAt(x, y, 0)  # Supprime le bâtiment
-        '''#pour supprimer l'immeuble et l'usine pendant le tremblement de terre mais marche pas
+        for y in range(worldHeight):
+            for x in range(worldWidth):
+                print("immeuble : getObjectAt(x, y,9)")
+                if getObjectAt(x, y,9) == buildingId or getObjectAt(x,y,10)== factoryId:  #Remplace avec les IDs des bâtiments
+                    #if random() < 0.5:  # 50% de chance qu'un bâtiment s'effondre
+
+                    setObjectAt(x, y, 0)  # Supprime le bâtiment
+        '''
+        #pour supprimer l'immeuble et l'usine pendant le tremblement de terre mais marche pas
 #arret earthquake timer
     if earthq >= earthq_time:
         addNoise=False  
