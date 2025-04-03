@@ -114,7 +114,7 @@ proba_rep_pred = 0.001
 proba_fabrication_robots = 0.001
 proba_attack_pred = 1
 proba_earthq = 0.00009
-proba_flood=0.0009
+proba_flood=0.9
 
 SEASONS = ["SPRING", "SUMMER", "AUTUMN", "WINTER"]
 current_season_index = 0
@@ -430,14 +430,6 @@ def render( it = 0 ):
                     # v1.
                     heightNoise = math.sin(it/23+yTile) * math.sin(it/7+xTile) * heightMultiplier/10 + math.cos(it/17+yTile+xTile) * math.cos(it/31+yTile) * heightMultiplier
                     heightNoise = math.sin(it/199) * heightNoise
-
-                #FUTURE INONDATION
-                '''
-                else:
-                    # v2.
-                    heightNoise = math.sin(it/13+yTile*19) * math.cos(it/17+xTile*41) * heightMultiplier
-                    heightNoise = math.sin(it/199) * heightNoise
-                '''
 
             height = getHeightAt( xTile , yTile ) * heightMultiplier + heightNoise
 
@@ -787,9 +779,36 @@ def initWorld():
             setHeightAt( x+x_offset, y+y_offset, building2HeightMap[y][x] )
             setObjectAt( x+x_offset, y+y_offset, -1 ) # add a virtual object: not displayed, but used to forbid agent(s) to come here.
     setObjectAt( x_offset+3, y_offset+4, treeId )
+    nbTrees+=1
 
 
+    mountainTerrainMap = [
+        [2, 2, 2, 2, 2],
+        [2, 2, 2, 2, 2],
+        [2, 2, 2, 2, 2],
+        [2, 2, 2, 2, 2],
+        [2, 2, 2, 2, 2]
+    ]
+    mountainHeightMap = [
+        [1, 1, 1, 1, 1],
+        [1, 2, 2, 2, 1],
+        [1, 2, 3, 2, 1],
+        [1, 2, 2, 2, 1],
+        [1, 1, 1, 1, 1]
+    ]
+    
+    x_offset = 35
+    y_offset = 31
+    for x in range(len(mountainTerrainMap[0])):
+        for y in range(len(mountainTerrainMap)):
+            setTerrainAt(x+x_offset, y+y_offset, mountainTerrainMap[x][y])
+            setHeightAt(x+x_offset, y+y_offset, mountainHeightMap[x][y])
+            setObjectAt(x+x_offset, y+y_offset, -1)
+    
+    setObjectAt(x_offset+2, y_offset+2, treeId)
+    nbTrees += 1  
 
+    setObjectAt(x,y,factoryId, 10)
     #ajout immeuble
     building_width =  5 # Largeur 
     building_height = 2 #et hauteur de l'immeuble en nombre de cases
@@ -857,7 +876,6 @@ def initWorld():
         for y in range(3,10):
             setTerrainAt(x,y,waterId)
             setObjectAt(x,y,-1)
-            #setHeightAt(x,y,-1)
     setTerrainAt(13,3,grassId)
     setTerrainAt(13,9,grassId)
     setTerrainAt(19,3,grassId)
@@ -869,56 +887,106 @@ def initWorld():
 def initAgents():
     return
 
-def burn_trees_near_factory():
+def flood_terrain():
     global nbTrees, nbBurningTrees
     
-    factory_min_x, factory_max_x = 5, 8
-    factory_min_y, factory_max_y = 28, 35
+    water_tiles = []
+    for x in range(worldWidth):
+        for y in range(worldHeight):
+            if getTerrainAt(x, y) == waterId:
+                water_tiles.append((x, y))
     
-    for x in range(factory_min_x - 4, factory_max_x + 5):
-        for y in range(factory_min_y - 4, factory_max_y + 5):
-            if (factory_min_x <= x <= factory_max_x and 
-                factory_min_y <= y <= factory_max_y):
-                continue
+    new_water_tiles = []
+    
+    for x, y in water_tiles:
+        for dx, dy in [(-1,0),(1,0),(0,-1),(0,1), (-1,-1),(-1,1),(1,-1),(1,1)]:
+            nx, ny = x + dx, y + dy
             
-            if 0 <= x < worldWidth and 0 <= y < worldHeight:
-                if getObjectAt(x, y) == treeId:
-                    setObjectAt(x, y, burningTreeId)
-                    burning_trees[(x, y)] = 0 
-                    nbTrees -= 1
-                    nbBurningTrees += 1
+            if 0 <= nx < worldWidth and 0 <= ny < worldHeight:
+                if (getTerrainAt(nx, ny) != waterId and 
+                    getHeightAt(nx, ny) <= 1 and 
+                    (nx, ny) not in new_water_tiles):
+                    
+                    if random() < 0.5:
+                        setTerrainAt(nx, ny, waterId)
+                        setObjectAt(nx, ny, -1)
+                        setHeightAt(nx, ny, 1)  
+                        new_water_tiles.append((nx, ny))
+                        
+                        if getObjectAt(nx, ny) == treeId:
+                            setObjectAt(nx, ny, burningTreeId)
+                            burning_trees[(nx, ny)] = 0
+                            nbTrees -= 1
+                            nbBurningTrees += 1
+                            
+                        agent = getAgentAt(nx, ny)
+                        if agent in [womanId, manId, predatorId]:
+                            setAgentAt(nx, ny, flameId)
+                            burning_agents[(nx, ny)] = 0
+    
+    return len(new_water_tiles) > 0
 
 ### ### ### ### ###
 def stepWorld(it=0):
     global nbTrees, nbBurningTrees, nbHumans, nbEvilRobots, nbRobots, nbPredators
 
     if it % 10 == 0:
-        burn_trees_near_factory()
+        factory_min_x, factory_max_x = 5, 8
+        factory_min_y, factory_max_y = 28, 35
+        
+        for x in range(factory_min_x - 4, factory_max_x + 5):
+            for y in range(factory_min_y - 4, factory_max_y + 5):
+                if (factory_min_x <= x <= factory_max_x and 
+                    factory_min_y <= y <= factory_max_y):
+                    continue
+                
+                if 0 <= x < worldWidth and 0 <= y < worldHeight:
+                    if getObjectAt(x, y) == treeId:
+                        setObjectAt(x, y, burningTreeId)
+                        burning_trees[(x, y)] = 0 
+                        nbTrees -= 1
+                        nbBurningTrees += 1
+
+    if it % 10 == 0 and random() < proba_flood:
+        water_tiles = []
+        for x in range(worldWidth):
+            for y in range(worldHeight):
+                if getTerrainAt(x, y) == waterId:
+                    water_tiles.append((x, y))
+        
+        new_water_tiles = []
+        
+        for x, y in water_tiles:
+            for dx, dy in [(-1,0),(1,0),(0,-1),(0,1), (-1,-1),(-1,1),(1,-1),(1,1)]:
+                nx, ny = x + dx, y + dy
+                
+                if 0 <= nx < worldWidth and 0 <= ny < worldHeight:
+                    if (getTerrainAt(nx, ny) != waterId and 
+                        getHeightAt(nx, ny) <= 1 and 
+                        (nx, ny) not in new_water_tiles):
+                        
+                        if random() < 0.5:
+                            setTerrainAt(nx, ny, waterId)
+                            setObjectAt(nx, ny, -1)
+                            setHeightAt(nx, ny, 1)  
+                            new_water_tiles.append((nx, ny))
+                            
+                            if getObjectAt(nx, ny) == treeId:
+                                setObjectAt(nx, ny, burningTreeId)
+                                burning_trees[(nx, ny)] = 0
+                                nbTrees -= 1
+                                nbBurningTrees += 1
+                                
+                            agent = getAgentAt(nx, ny)
+                            if agent in [womanId, manId, predatorId]:
+                                setAgentAt(nx, ny, flameId)
+                                burning_agents[(nx, ny)] = 0
+        
+        return len(new_water_tiles) > 0
 
     if it % (maxFps / 10) == 0:
         new_trees = []  # Liste des nouveaux arbres à planter
-
-        # l'inondation
-        setTerrainAt(13,3,waterId)
-        setObjectAt(13,3,-1)
-        setTerrainAt(13,9,waterId)
-        setObjectAt(13,9,-1)
-        setTerrainAt(19,3,waterId)
-        setObjectAt(19,3,-1)
-        setTerrainAt(19,9,waterId)
-        setObjectAt(19,9,-1)
-        '''
-        for x in range(21, ):
-            for y in range(10,(9+ worldWidth) % worldWidth) :
-                if random() < 1 :
-                    setTerrainAt(x,y,waterId)
-                    setObjectAt(x,y,-1)
-        
-            #if getObjectAt(x, y) == 0:  # Vérifie que la case est vide
-            setTerrainAt(x, y, 4)  # Remplace par de l'eau
-            setHeightAt(x, y, 1) 
-        '''
-
+    
 
 
         for x in range(worldWidth):
