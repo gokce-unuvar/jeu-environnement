@@ -869,9 +869,32 @@ def initWorld():
 def initAgents():
     return
 
+def burn_trees_near_factory():
+    global nbTrees, nbBurningTrees
+    
+    factory_min_x, factory_max_x = 5, 8
+    factory_min_y, factory_max_y = 28, 35
+    
+    for x in range(factory_min_x - 4, factory_max_x + 5):
+        for y in range(factory_min_y - 4, factory_max_y + 5):
+            if (factory_min_x <= x <= factory_max_x and 
+                factory_min_y <= y <= factory_max_y):
+                continue
+            
+            if 0 <= x < worldWidth and 0 <= y < worldHeight:
+                if getObjectAt(x, y) == treeId:
+                    setObjectAt(x, y, burningTreeId)
+                    burning_trees[(x, y)] = 0 
+                    nbTrees -= 1
+                    nbBurningTrees += 1
+
 ### ### ### ### ###
 def stepWorld(it=0):
     global nbTrees, nbBurningTrees, nbHumans, nbEvilRobots, nbRobots, nbPredators
+
+    if it % 10 == 0:
+        burn_trees_near_factory()
+
     if it % (maxFps / 10) == 0:
         new_trees = []  # Liste des nouveaux arbres à planter
 
