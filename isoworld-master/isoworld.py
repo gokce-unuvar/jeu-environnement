@@ -116,6 +116,7 @@ proba_attack_pred = 1
 proba_earthq = 0.00009
 proba_flood=0.9
 
+#Pour les saisons
 SEASONS = ["SPRING", "SUMMER", "AUTUMN", "WINTER"]
 current_season_index = 0
 current_season = SEASONS[current_season_index]
@@ -456,7 +457,7 @@ def render( it = 0 ):
 ###
 ###
 
-class BasicAgent:
+class Player:
 
     def __init__(self,imageId):
         self.type = imageId
@@ -809,6 +810,7 @@ def initWorld():
     nbTrees += 1  
 
     setObjectAt(x,y,factoryId, 10)
+    
     #ajout immeuble
     building_width =  5 # Largeur 
     building_height = 2 #et hauteur de l'immeuble en nombre de cases
@@ -1003,7 +1005,7 @@ def stepWorld(it=0):
                         nbBurningTrees-=1
 
                 # Les humains brulent
-                elif getAgentAt(x,y) == 2 or getAgentAt(x,y) == 3 or getAgentAt(x,y) == 4 or getAgentAt(x,y) == 5 or getAgentAt(x,y) == 6 :
+                elif getAgentAt(x,y) in [womanId, manId, predatorId, robotId, evilRobotId]:
 
                     for neighbours in ((-1, 0), (+1, 0), (0, -1), (0, +1)):
                         nx = (x + neighbours[0] + worldWidth) % worldWidth
@@ -1088,7 +1090,7 @@ displayWelcomeMessage()
 initWorld()
 initAgents()
 
-player = BasicAgent(playerId) #A CHANGER PARCE QUE PLUS DE BASIC AGENT
+player = Player(playerId) #A CHANGER PARCE QUE PLUS DE BASIC AGENT
 
 print ("initWorld:",datetime.datetime.now().timestamp()-timestamp,"second(s)")
 timeStampStart = timeStamp = datetime.datetime.now().timestamp()
@@ -1181,7 +1183,7 @@ while userExit == False:
     '''
     #reproduction des ghosts
     if it % 10 == 0:
-        agents.append(BasicAgent(ghostId))
+        agents.append(Player(ghostId))
     '''
 
     # continuous stroke
