@@ -116,6 +116,12 @@ proba_attack_pred = 1
 proba_earthq = 0.00009
 proba_flood=0.0009
 
+SEASONS = ["SPRING", "SUMMER", "AUTUMN", "WINTER"]
+current_season_index = 0
+current_season = SEASONS[current_season_index]
+season_duration = 30 * maxFps  # 30 saniye (maxFps frame/saniye)
+season_timer = 0
+
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
@@ -157,7 +163,52 @@ def loadImageFactory(filename):
     return image
 
 def loadAllImages():
-    global tileType, objectType, agentType
+    global tileType, objectType, agentType, season_backgrounds, season_trees, season_man, season_woman, season_building, season_wolf, current_background, season_factory
+
+    season_backgrounds = {
+        "SPRING": pygame.transform.scale(pygame.image.load('assets/basic111x128/bg_spring.png').convert(), (screenWidth, screenHeight)),
+        "SUMMER": pygame.transform.scale(pygame.image.load('assets/basic111x128/bg_summer.png').convert(), (screenWidth, screenHeight)),
+        "AUTUMN": pygame.transform.scale(pygame.image.load('assets/basic111x128/bg_autumn.png').convert(), (screenWidth, screenHeight)),
+        "WINTER": pygame.transform.scale(pygame.image.load('assets/basic111x128/bg_winter.png').convert(), (screenWidth, screenHeight))
+    }
+    current_background = season_backgrounds[current_season]
+
+    season_trees = {
+        "SPRING": 'assets/basic111x128/spring_tree.png',
+        "SUMMER": 'assets/basic111x128/summer_tree.png',
+        "AUTUMN": 'assets/basic111x128/autumn_tree.png',
+        "WINTER": 'assets/basic111x128/winter_arbre.png'
+    }
+    season_man = {
+        "SPRING": 'assets/basic111x128/man.png',
+        "SUMMER": 'assets/basic111x128/man_summer.png',
+        "AUTUMN": 'assets/basic111x128/man.png',
+        "WINTER": 'assets/basic111x128/winter_man.png'
+    }
+    season_woman = {
+        "SPRING": 'assets/basic111x128/woman.png',
+        "SUMMER": 'assets/basic111x128/summer_woman.png',
+        "AUTUMN": 'assets/basic111x128/woman.png',
+        "WINTER": 'assets/basic111x128/winter_woman.png'
+    }
+    season_building = {
+        "SPRING": 'assets/basic111x128/building.png',
+        "SUMMER": 'assets/basic111x128/building.png',
+        "AUTUMN": 'assets/basic111x128/building.png',
+        "WINTER": 'assets/basic111x128/winter_building.png'
+    }
+    season_wolf = {
+        "SPRING": 'assets/basic111x128/wolf.png',
+        "SUMMER": 'assets/basic111x128/summer_wolf.png',
+        "AUTUMN": 'assets/basic111x128/wolf.png',
+        "WINTER": 'assets/basic111x128/winter_wolf.png'
+    }
+    season_factory = {
+        "SPRING": 'assets/basic111x128/factory.png',
+        "SUMMER": 'assets/basic111x128/factory.png',
+        "AUTUMN": 'assets/basic111x128/factory.png',
+        "WINTER": 'assets/basic111x128/winter_factory.png'
+    }
 
     tileType = []
     objectType = []
@@ -170,24 +221,28 @@ def loadAllImages():
     tileType.append(loadImage('assets/basic111x128/abstractTile_26.png')) # water
 
     objectType.append(None) # default -- never drawn
-    objectType.append(loadImage('assets/basic111x128/summer_tree.png')) # normal tree 
+    objectType.append(loadImage(season_trees[current_season]))  # normal tree
     objectType.append(loadImage('assets/basic111x128/platformerTile_18.png')) # construction block
     objectType.append(loadImage('assets/basic111x128/arbre_brule.png')) # burning tree
-    objectType.append(loadImageBuilding('assets/basic111x128/building.png')) #immeuble
-    objectType.append(loadImageFactory('assets/basic111x128/factory.png')) #usine
+    objectType.append(loadImageBuilding(season_building[current_season])) #immeuble
+    objectType.append(loadImageFactory(season_factory[current_season])) #usine
     objectType.append(loadImage('assets/basic111x128/arbre_mort.png')) # burnt tree
     
 
     agentType.append(None) # default -- never drawn
     agentType.append(loadImage('assets/basic111x128/player.png')) # invader -> player
-    agentType.append(loadImage('assets/basic111x128/wolf.png')) # purple ghost -> wolf
-    agentType.append(loadImage('assets/basic111x128/woman.png')) # baby -> human
+    agentType.append(loadImage(season_wolf[current_season])) # wolf
+    agentType.append(loadImage(season_woman[current_season])) # human
     agentType.append(loadImage('assets/basic111x128/robot.png'))
     agentType.append(loadImage('assets/basic111x128/robot_evil.png'))
-    agentType.append(loadImage('assets/basic111x128/man.png'))
+    agentType.append(loadImage(season_man[current_season]))
     agentType.append(loadImage('assets/basic111x128/flame.png'))
 
-
+def change_season():
+    global current_season_index, current_season, current_background
+    current_season_index = (current_season_index + 1) % len(SEASONS)
+    current_season = SEASONS[current_season_index]
+    loadAllImages()
 
 def resetImages():
     global tileTotalWidth, tileTotalHeight, tileTotalWidthOriginal, tileTotalHeightOriginal, scaleMultiplier, heightMultiplier, tileVisibleHeight
@@ -356,6 +411,8 @@ def render( it = 0 ):
 
     pygame.draw.rect(screen, (0,0,0), (0, 0, screenWidth, screenHeight), 0) # overkill - can be optimized. (most sprites are already "naturally" overwritten)
     #pygame.display.update()
+
+    screen.blit(current_background, (0, 0))
 
     for y in range(getViewHeight()):
         for x in range(getViewWidth()):
@@ -827,6 +884,7 @@ def stepWorld(it=0):
         setObjectAt(19,3,-1)
         setTerrainAt(19,9,waterId)
         setObjectAt(19,9,-1)
+        '''
         for x in range(21, ):
             for y in range(10,(9+ worldWidth) % worldWidth) :
                 if random() < 1 :
@@ -836,6 +894,7 @@ def stepWorld(it=0):
             #if getObjectAt(x, y) == 0:  # Vérifie que la case est vide
             setTerrainAt(x, y, 4)  # Remplace par de l'eau
             setHeightAt(x, y, 1) 
+        '''
 
 
 
@@ -997,6 +1056,16 @@ it = itStamp = 0
 userExit = False
 
 while userExit == False:
+
+    season_timer += 1
+    if season_timer >= season_duration:
+        season_timer = 0
+        current_season_index = (current_season_index + 1) % len(SEASONS)
+        current_season = SEASONS[current_season_index]
+        
+        loadAllImages()  
+        
+        print(f"saison a change: {current_season}")
 
     if it != 0 and it % 100 == 0 and verboseFps:
         print ("[fps] ", ( it - itStamp ) / ( datetime.datetime.now().timestamp()-timeStamp ) )
