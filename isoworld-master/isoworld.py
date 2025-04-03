@@ -887,49 +887,13 @@ def initWorld():
 def initAgents():
     return
 
-def flood_terrain():
-    global nbTrees, nbBurningTrees
-    
-    water_tiles = []
-    for x in range(worldWidth):
-        for y in range(worldHeight):
-            if getTerrainAt(x, y) == waterId:
-                water_tiles.append((x, y))
-    
-    new_water_tiles = []
-    
-    for x, y in water_tiles:
-        for dx, dy in [(-1,0),(1,0),(0,-1),(0,1), (-1,-1),(-1,1),(1,-1),(1,1)]:
-            nx, ny = x + dx, y + dy
-            
-            if 0 <= nx < worldWidth and 0 <= ny < worldHeight:
-                if (getTerrainAt(nx, ny) != waterId and 
-                    getHeightAt(nx, ny) <= 1 and 
-                    (nx, ny) not in new_water_tiles):
-                    
-                    if random() < 0.5:
-                        setTerrainAt(nx, ny, waterId)
-                        setObjectAt(nx, ny, -1)
-                        setHeightAt(nx, ny, 1)  
-                        new_water_tiles.append((nx, ny))
-                        
-                        if getObjectAt(nx, ny) == treeId:
-                            setObjectAt(nx, ny, burningTreeId)
-                            burning_trees[(nx, ny)] = 0
-                            nbTrees -= 1
-                            nbBurningTrees += 1
-                            
-                        agent = getAgentAt(nx, ny)
-                        if agent in [womanId, manId, predatorId]:
-                            setAgentAt(nx, ny, flameId)
-                            burning_agents[(nx, ny)] = 0
-    
-    return len(new_water_tiles) > 0
 
 ### ### ### ### ###
 def stepWorld(it=0):
     global nbTrees, nbBurningTrees, nbHumans, nbEvilRobots, nbRobots, nbPredators
+  
 
+    #bruler les arbres a cote de l'usine
     if it % 10 == 0:
         factory_min_x, factory_max_x = 5, 8
         factory_min_y, factory_max_y = 28, 35
@@ -946,7 +910,7 @@ def stepWorld(it=0):
                         burning_trees[(x, y)] = 0 
                         nbTrees -= 1
                         nbBurningTrees += 1
-
+    #inondation
     if it % 10 == 0 and random() < proba_flood:
         water_tiles = []
         for x in range(worldWidth):
@@ -1070,19 +1034,6 @@ def stepWorld(it=0):
                             Human(flameId)
                         del burning_agents[(x, y)]
                         setAgentAt(x,y,0)
-                '''
-                for x in range(3, 12): 
-                    if getObjectAt(x, 26) == treeId:
-                        setObjectAt(x, 26, burningTreeId)
-                    if getObjectAt(x, 36) == treeId:
-                        setObjectAt(x, 36, burningTreeId)  
-                
-                for y in range(26, 37):  
-                    if getObjectAt(3, y) == treeId:
-                        setObjectAt(3, y, burningTreeId) 
-                    if getObjectAt(11, y) == treeId:
-                        setObjectAt(11, y, burningTreeId) 
-                ''' # pour mettre le feu a cote de l'usine mais marche pas
 
         # Ajouter les nouveaux arbres
         for x, y in new_trees:
