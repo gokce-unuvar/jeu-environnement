@@ -552,7 +552,7 @@ class Human:
             xNew = (self.x + [-1, +1][randint(0, 1)] + getWorldWidth()) % getWorldWidth()
         else:
             yNew = (self.y + [-1, +1][randint(0, 1)] + getWorldHeight()) % getWorldHeight()
-        if(getAgentAt(self.x, self.y)!=flameId) & (self.alive == True) : #regarde si l'humain ne brule pas et s'il est vivant
+        if (getAgentAt(self.x, self.y)!=flameId) & (self.alive) : #regarde si l'humain ne brule pas et s'il est vivant
             if getObjectAt(xNew, yNew) == 0:  # Can only move if no obstacle
                 setAgentAt(self.x, self.y, noAgentId)
                 self.x, self.y = xNew, yNew
@@ -580,14 +580,11 @@ class Human:
 
     def burnt(self,humans) :
         global nbHumans
-        #if self.type == flameId :
         humans.remove(self)
         nbHumans-=1
         del burning_agents[(self.x, self.y)] #PAS SUR DE METTRE çA LA
             #mettre une case sans objet la ou l'humain etait
         setAgentAt(self.x, self.y, noAgentId)
-        self.alive = False
-
 
 
 class Robot:
@@ -595,6 +592,7 @@ class Robot:
         self.type = imageId
         self.reset()
         self.evil = False  # Starts peaceful
+        self.alive = True
 
     def reset(self):
         """Place le robot aléatoirement dans le monde"""
@@ -613,11 +611,12 @@ class Robot:
             xNew = (self.x + [-1, +1][randint(0, 1)] + getWorldWidth()) % getWorldWidth()
         else:
             yNew = (self.y + [-1, +1][randint(0, 1)] + getWorldHeight()) % getWorldHeight()
-
-        if getObjectAt(xNew, yNew) == 0:  # Can only move if no obstacle
-            setAgentAt(self.x, self.y, noAgentId)
-            self.x, self.y = xNew, yNew
-            setAgentAt(self.x, self.y, self.type)
+        
+        if(getAgentAt(self.x, self.y)!=flameId) & (self.alive) :
+            if getObjectAt(xNew, yNew) == 0 :  # Can only move if no obstacle
+                setAgentAt(self.x, self.y, noAgentId)
+                self.x, self.y = xNew, yNew
+                setAgentAt(self.x, self.y, self.type)
         return
 
     def turn_evil(self):
@@ -665,7 +664,19 @@ class Robot:
                 robots[-1].x, robots[-1].y = new_x, new_y
                 setAgentAt(new_x, new_y, self.type)
                 nbRobots+=1
-        return        
+        return     
+    
+    def burnt(self,robots) :
+        global nbRobots
+        robots.remove(self)
+        del burning_agents[(self.x, self.y)]
+            #mettre une case sans objet la ou l'humain etait
+        setAgentAt(self.x, self.y, noAgentId)
+        if self.evil :
+            nbEvilRobots -=1
+        else :
+            nbRobots -=1   
+
 
 class Predator:
     def __init__(self, imageId):
@@ -1058,6 +1069,7 @@ def stepAgents( it = 0 ):
         shuffle(predators)
         shuffle(humans)
         shuffle(robots)
+
         for h in humans:   # shuffle agents in in-place (i.e. agents is modified)
             if (getAgentAt(h.x,h.y)) != flameId :       
                 h.move()
@@ -1074,12 +1086,20 @@ def stepAgents( it = 0 ):
             p.move()
             p.hunt(humans)
             p.reproduce(predators)
+
         for r in robots :
-            r.move()
-            r.turn_evil()
-            r.attack_predator(predators)
-            r.attack_human(humans)
-            r.fabrication(robots)
+            if (getAgentAt(r.x,r.y)) != flameId :
+                r.move()
+                r.turn_evil()
+                r.attack_predator(predators)
+                r.attack_human(humans)
+                r.fabrication(robots)
+            else :
+                r.alive = False
+                if (h.x, h.y) in burning_agents and (it - burning_agents[(r.x, r.y)] >= burning_time) : 
+                    print("ROBOOOOTS")
+                    r.burnt(robots)
+
 
         player.attack_predator(predators)
         
