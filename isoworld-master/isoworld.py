@@ -55,7 +55,7 @@ global nbTrees, nbBurningTrees, nbPredators, nbRobots, nbHumans, nbEvilRobots, n
 
 nbTrees = 131 #350
 nbBurningTrees = 7 #15
-nbPredators = 6 #6
+nbPredators = 0 #6
 nbRobots = 4
 nbHumans = 7
 nbEvilRobots = 0
@@ -103,10 +103,10 @@ burning_agents= {}
 burning_time = 5 * maxFps  # Durée avant que l'arbre brûlé apparaisse (ex: 5 secondes)
 burnt_time = 10 *maxFps
 earthq_time = 40 *maxFps
-flood_time=40*maxFps
-proba_rep_tree= 0.0005  # 1% de chance par cycle de reproduction
-proba_brule = 0.0001
-proba_voisin_brule = 0.01
+flood_time = 40 *maxFps
+proba_rep_tree = 0.0005  # 1% de chance par cycle de reproduction
+proba_brule = 0.005 #0.0005
+proba_voisin_brule = 1 #0.05
 proba_evil_brule = 0.05
 proba_turn_evil = 0.001
 proba_rep_hum = 0.001
@@ -114,7 +114,7 @@ proba_rep_pred = 0.001
 proba_fabrication_robots = 0.001
 proba_attack_pred = 1
 proba_earthq = 0.00009
-proba_flood=0.9
+proba_flood=0.00009
 
 #Pour les saisons
 SEASONS = ["SPRING", "SUMMER", "AUTUMN", "WINTER"]
@@ -294,7 +294,7 @@ playerId = 1
 womanId = 3
 manId = 6
 robotId = 4
-evilRobotId = 5  # Evil robot ont une id différente
+evilRobotId = 5  # Evil robots ont une id différente
 predatorId = 2
 flameId = 7
 
@@ -533,6 +533,7 @@ class Human:
     def __init__(self, imageId):
         self.type = imageId
         self.reset()
+        self.alive = True
 
     def reset(self):
         """Place l'humain aléatoirement dans le monde"""
@@ -551,7 +552,7 @@ class Human:
             xNew = (self.x + [-1, +1][randint(0, 1)] + getWorldWidth()) % getWorldWidth()
         else:
             yNew = (self.y + [-1, +1][randint(0, 1)] + getWorldHeight()) % getWorldHeight()
-        if(getAgentAt(self.x, self.y)!=flameId):
+        if(getAgentAt(self.x, self.y)!=flameId) & (self.alive == True) : #regarde si l'humain ne brule pas et s'il est vivant
             if getObjectAt(xNew, yNew) == 0:  # Can only move if no obstacle
                 setAgentAt(self.x, self.y, noAgentId)
                 self.x, self.y = xNew, yNew
@@ -577,11 +578,15 @@ class Human:
         self.type = flameId
         return
 
-    def brunt(self,humans) :
+    def burnt(self,humans) :
         global nbHumans
-        if self.type == flameId :
-            humans.remove(humans)
-            nbHumans-=1
+        #if self.type == flameId :
+        humans.remove(self)
+        nbHumans-=1
+        del burning_agents[(self.x, self.y)] #PAS SUR DE METTRE çA LA
+            #mettre une case sans objet la ou l'humain etait
+        setAgentAt(self.x, self.y, noAgentId)
+        self.alive = False
 
 
 
@@ -944,7 +949,7 @@ def stepWorld(it=0):
                                 nbBurningTrees += 1
                                 
                             agent = getAgentAt(nx, ny)
-                            if agent in [womanId, manId, predatorId]:
+                            if agent in [womanId, manId, predatorId,evilRobotId, playerId, robotsId]:
                                 setAgentAt(nx, ny, flameId)
                                 burning_agents[(nx, ny)] = 0
         
@@ -1015,6 +1020,7 @@ def stepWorld(it=0):
                             
                             burning_agents[(x, y)] = it  # Enregistre le moment où il brûle
                 
+                '''
                 #Les humains disparaissent 
                 elif getAgentAt(x,y) ==  flameId:
                     if (x, y) in burning_agents and it - burning_agents[(x, y)] >= burning_time:
@@ -1023,19 +1029,19 @@ def stepWorld(it=0):
                             nbPredators-=1
                             predators.remove(getAgentAt(x,y))
                             break
-                        elif getAgentAt(x,y) == 3 or getAgentAt(x,y) == 6 :
-                            nbHumans-=1
-                            humans.remove(getAgentAt(x,y))
-                            break
+
                         elif getAgentAt(x,y) == 4 : 
                             nbRobots-=1
                             robots.remove(getAgentAt(x,y))
                             break
                         elif getAgentAt(x,y) == 5 :
                             nbEvilRobots-=1
-                            Human(flameId)
+                            robots.remove(getAgentAt(x,y))
+                        
+                            #Human(flameId)
                         del burning_agents[(x, y)]
                         setAgentAt(x,y,0)
+                    '''
 
         # Ajouter les nouveaux arbres
         for x, y in new_trees:
@@ -1053,9 +1059,17 @@ def stepAgents( it = 0 ):
         shuffle(humans)
         shuffle(robots)
         for h in humans:   # shuffle agents in in-place (i.e. agents is modified)
-            
-            h.move()
-            h.reproduce(humans)
+            if (getAgentAt(h.x,h.y)) != flameId :       
+                h.move()
+                h.reproduce(humans)
+            else :
+                h.alive = False
+                #print("le 1er print marche !! ")
+                if (h.x, h.y) in burning_agents and (it - burning_agents[(h.x, h.y)] >= burning_time) :
+                    print("UIIIIII")
+                    h.burnt(humans)
+                    
+
         for p in predators :
             p.move()
             p.hunt(humans)
@@ -1167,6 +1181,11 @@ while userExit == False:
             break
 
     '''
+#LES TESTS 
+    if it % 50 == 0:
+        print("nb humains : ", nbHumans)
+
+
     if perdu == True:
         print ("")
         print ("#### #### #### #### ####")
