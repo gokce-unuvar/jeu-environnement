@@ -55,7 +55,7 @@ global nbTrees, nbBurningTrees, nbPredators, nbRobots, nbHumans, nbEvilRobots, n
 
 nbTrees = 131 #350
 nbBurningTrees = 7 #15
-nbPredators = 0 #6
+nbPredators = 6 #6
 nbRobots = 4
 nbHumans = 7
 nbEvilRobots = 0
@@ -552,12 +552,11 @@ class Human:
             xNew = (self.x + [-1, +1][randint(0, 1)] + getWorldWidth()) % getWorldWidth()
         else:
             yNew = (self.y + [-1, +1][randint(0, 1)] + getWorldHeight()) % getWorldHeight()
-        if (getAgentAt(self.x, self.y)!=flameId) & (self.alive) : #regarde si l'humain ne brule pas et s'il est vivant
-            if getObjectAt(xNew, yNew) == 0:  # Can only move if no obstacle
-                setAgentAt(self.x, self.y, noAgentId)
-                self.x, self.y = xNew, yNew
-                setAgentAt(self.x, self.y, self.type)
-            return
+        if getObjectAt(xNew, yNew) == 0:  # Can only move if no obstacle
+            setAgentAt(self.x, self.y, noAgentId)
+            self.x, self.y = xNew, yNew
+            setAgentAt(self.x, self.y, self.type)
+        return
 
     def reproduce(self, humans):
         """Les humains se reproduisent avec une probabilité"""
@@ -612,11 +611,10 @@ class Robot:
         else:
             yNew = (self.y + [-1, +1][randint(0, 1)] + getWorldHeight()) % getWorldHeight()
         
-        if(getAgentAt(self.x, self.y)!=flameId) & (self.alive) :
-            if getObjectAt(xNew, yNew) == 0 :  # Can only move if no obstacle
-                setAgentAt(self.x, self.y, noAgentId)
-                self.x, self.y = xNew, yNew
-                setAgentAt(self.x, self.y, self.type)
+        if getObjectAt(xNew, yNew) == 0 :  # Can only move if no obstacle
+            setAgentAt(self.x, self.y, noAgentId)
+            self.x, self.y = xNew, yNew
+            setAgentAt(self.x, self.y, self.type)
         return
 
     def turn_evil(self):
@@ -682,6 +680,7 @@ class Predator:
     def __init__(self, imageId):
         self.type = imageId
         self.reset()
+        self.alive = True
 
     def reset(self):
         """Place le predateur aléatoirement dans le monde"""
@@ -730,6 +729,14 @@ class Predator:
                 setAgentAt(new_x, new_y, self.type)
                 nbPredators+=1
         return
+    
+    def burnt(self,predators) :
+        global nbPredators
+        predators.remove(self)
+        del burning_agents[(self.x, self.y)]
+            #mettre une case sans objet la ou l'humain etait
+        setAgentAt(self.x, self.y, noAgentId)
+        nbPredators-=1 
 
 
 
@@ -1071,7 +1078,7 @@ def stepAgents( it = 0 ):
         shuffle(robots)
 
         for h in humans:   # shuffle agents in in-place (i.e. agents is modified)
-            if (getAgentAt(h.x,h.y)) != flameId :       
+            if getAgentAt(h.x,h.y) != flameId and h.alive :       
                 h.move()
                 h.reproduce(humans)
             else :
@@ -1083,12 +1090,18 @@ def stepAgents( it = 0 ):
                     
 
         for p in predators :
-            p.move()
-            p.hunt(humans)
-            p.reproduce(predators)
+            if getAgentAt(p.x, p.y) != flameId and p.alive :
+                p.move()
+                p.hunt(humans)
+                p.reproduce(predators)
+            else :
+                p.alive = False
+                if (p.x, p.y) in burning_agents and (it - burning_agents[(p.x, p.y)] >= burning_time) :
+                    print("PREDATOOOORS")
+                    p.burnt(predators)
 
         for r in robots :
-            if (getAgentAt(r.x,r.y)) != flameId :
+            if (getAgentAt(r.x,r.y)) != flameId and r.alive :
                 r.move()
                 r.turn_evil()
                 r.attack_predator(predators)
@@ -1096,7 +1109,7 @@ def stepAgents( it = 0 ):
                 r.fabrication(robots)
             else :
                 r.alive = False
-                if (h.x, h.y) in burning_agents and (it - burning_agents[(r.x, r.y)] >= burning_time) : 
+                if (r.x, r.y) in burning_agents and (it - burning_agents[(r.x, r.y)] >= burning_time) : 
                     print("ROBOOOOTS")
                     r.burnt(robots)
 
@@ -1204,7 +1217,11 @@ while userExit == False:
 #LES TESTS 
     if it % 50 == 0:
         print("nb humains : ", nbHumans)
+        print("nb robots sains : ", nbRobots)
+        print("nb robots evils : ", nbEvilRobots)
+        print("nb predateurs : ", nbPredators)
 
+#________________________________________
 
     if perdu == True:
         print ("")
