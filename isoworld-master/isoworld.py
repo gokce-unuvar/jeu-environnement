@@ -114,7 +114,7 @@ proba_rep_pred = 0.001
 proba_fabrication_robots = 0.001
 proba_attack_pred = 1
 proba_earthq = 0.00009
-proba_flood=0.00009
+proba_flood=0.9
 
 #Pour les saisons
 SEASONS = ["SPRING", "SUMMER", "AUTUMN", "WINTER"]
@@ -832,7 +832,6 @@ def initWorld():
     setObjectAt(x_offset+2, y_offset+2, treeId)
     nbTrees += 1  
 
-    setObjectAt(x,y,factoryId, 10)
     
     #ajout immeuble
     building_width =  5 # Largeur 
@@ -918,23 +917,7 @@ def stepWorld(it=0):
     global nbTrees, nbBurningTrees, nbHumans, nbEvilRobots, nbRobots, nbPredators
   
 
-    #bruler les arbres a cote de l'usine
-    if it % 10 == 0:
-        factory_min_x, factory_max_x = 5, 8
-        factory_min_y, factory_max_y = 28, 35
-        
-        for x in range(factory_min_x - 4, factory_max_x + 5):
-            for y in range(factory_min_y - 4, factory_max_y + 5):
-                if (factory_min_x <= x <= factory_max_x and 
-                    factory_min_y <= y <= factory_max_y):
-                    continue
-                
-                if 0 <= x < worldWidth and 0 <= y < worldHeight:
-                    if getObjectAt(x, y) == treeId:
-                        setObjectAt(x, y, burningTreeId)
-                        burning_trees[(x, y)] = 0 
-                        nbTrees -= 1
-                        nbBurningTrees += 1
+ 
     #inondation
     if it % 10 == 0 and random() < proba_flood:
         water_tiles = []
@@ -945,6 +928,13 @@ def stepWorld(it=0):
         
         new_water_tiles = []
         
+        #mettre le lac au même level
+        for x in range(13,20):
+            for y in range(3,10):
+                setTerrainAt(x,y,waterId)
+                setObjectAt(x,y,-1)
+                setHeightAt(x,y,1)
+
         for x, y in water_tiles:
             for dx, dy in [(-1,0),(1,0),(0,-1),(0,1), (-1,-1),(-1,1),(1,-1),(1,1)]:
                 nx, ny = x + dx, y + dy
@@ -961,22 +951,41 @@ def stepWorld(it=0):
                             new_water_tiles.append((nx, ny))
                             
                             if getObjectAt(nx, ny) == treeId:
-                                setObjectAt(nx, ny, burningTreeId)
-                                burning_trees[(nx, ny)] = 0
+                                setObjectAt(nx, ny, noObjectId)
                                 nbTrees -= 1
-                                nbBurningTrees += 1
                                 
                             agent = getAgentAt(nx, ny)
-                            if agent in [womanId, manId, predatorId,evilRobotId, playerId, robotsId]:
-                                setAgentAt(nx, ny, flameId)
-                                burning_agents[(nx, ny)] = 0
+                            if agent in [womanId, manId, predatorId,evilRobotId, playerId, robotId]:
+                                setAgentAt(nx, ny, noAgentId)
         
         return len(new_water_tiles) > 0
+
+
+#ARBRES 
+
+   #bruler les arbres a cote de l'usine
+    if it % 10 == 0:
+        factory_min_x, factory_max_x = 5, 8
+        factory_min_y, factory_max_y = 28, 35
+        
+        for x in range(factory_min_x - 4, factory_max_x + 5):
+            for y in range(factory_min_y - 4, factory_max_y + 5):
+                if (factory_min_x <= x <= factory_max_x and 
+                    factory_min_y <= y <= factory_max_y):
+                    continue
+                
+                if 0 <= x < worldWidth and 0 <= y < worldHeight:
+                    if getObjectAt(x, y) == treeId:
+                        setObjectAt(x, y, burningTreeId)
+                        burning_trees[(x, y)] = 0 
+                        nbTrees -= 1
+                        nbBurningTrees += 1
+
+
 
     if it % (maxFps / 10) == 0:
         new_trees = []  # Liste des nouveaux arbres à planter
     
-
 
         for x in range(worldWidth):
             for y in range(worldHeight):
@@ -1038,28 +1047,7 @@ def stepWorld(it=0):
                             
                             burning_agents[(x, y)] = it  # Enregistre le moment où il brûle
                 
-                '''
-                #Les humains disparaissent 
-                elif getAgentAt(x,y) ==  flameId:
-                    if (x, y) in burning_agents and it - burning_agents[(x, y)] >= burning_time:
-                        
-                        if getAgentAt(x,y) == 2 :
-                            nbPredators-=1
-                            predators.remove(getAgentAt(x,y))
-                            break
 
-                        elif getAgentAt(x,y) == 4 : 
-                            nbRobots-=1
-                            robots.remove(getAgentAt(x,y))
-                            break
-                        elif getAgentAt(x,y) == 5 :
-                            nbEvilRobots-=1
-                            robots.remove(getAgentAt(x,y))
-                        
-                            #Human(flameId)
-                        del burning_agents[(x, y)]
-                        setAgentAt(x,y,0)
-                    '''
 
         # Ajouter les nouveaux arbres
         for x, y in new_trees:
@@ -1171,6 +1159,7 @@ while userExit == False:
     if random() < proba_earthq or nbEvilRobots > 15:
         addNoise = True
         earthq = it
+
         '''
         for y in range(worldHeight):
             for x in range(worldWidth):
@@ -1180,6 +1169,7 @@ while userExit == False:
 
                     setObjectAt(x, y, 0)  # Supprime le bâtiment
         '''
+
         #pour supprimer l'immeuble et l'usine pendant le tremblement de terre mais marche pas
 #arret earthquake timer
     if earthq >= earthq_time:
