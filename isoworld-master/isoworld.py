@@ -102,21 +102,33 @@ verboseFps = True # display FPS every once in a while
 
 burning_trees = {}  # Dictionnaire qui stocke (x, y) -> temps depuis qu'il brûle
 burning_agents= {}
-burning_time = 5 * maxFps  # Durée avant que l'arbre brûlé apparaisse (ex: 5 secondes)
+burning_time = 5 * maxFps  # Durée avant que l'arbre brûlé apparaisse 
 burnt_time = 10 *maxFps
-earthq_time = 40 *maxFps
-flood_time = 40 *maxFps
-proba_rep_tree = 0.0005  # 1% de chance par cycle de reproduction
-proba_brule = 0.0005 #0.0005
-proba_voisin_brule = 0.05 #0.05
+proba_rep_tree = 0.0005 
+proba_brule = 0.005 #0.0005
+proba_voisin_brule = 0.5 #0.05
+
 proba_evil_brule = 0.05
 proba_turn_evil = 0.001
-proba_rep_hum = 0.001 #0.001
-proba_rep_pred = 0.001 #0.001
-proba_fabrication_robots = 0.001 #0.001
+proba_rep_hum = 0.001
+proba_rep_pred = 0.001
+proba_fabrication_robots = 0.001
 proba_attack_pred = 1
-proba_earthq = 0.00009
-proba_flood=0.00009
+
+proba_earthq = 0.2
+is_earthquake_active = False
+earthquake_end_time = 0
+earthquake_initial_delay = 40 * maxFps  # 40 secondes avant que le tremblement de terre peut etre vrai
+earthquake_cooldown = 80 * maxFps     # 80 secondes entre chaque tremblement de terre
+next_earthquake_time = earthquake_initial_delay  # le temps d'attente pour le prochain tremblement de terre
+earthq_time = 30 *maxFps #40
+
+proba_flood_after_earthquake = 0.7 
+flood_active = False
+flood_duration = 20 * maxFps  # la durée de l'inondation
+flood_spread_interval = 10  # Spread every 10 frames
+flood_end_time=0
+next_flood_spread = 0
 
 #Pour les saisons
 SEASONS = ["SPRING", "SUMMER", "AUTUMN", "WINTER"]
@@ -893,52 +905,97 @@ def initAgents():
 
 ### ### ### ### ###
 def stepWorld(it=0):
-    global nbTrees, nbBurningTrees, nbHumans, nbEvilRobots, nbRobots, nbPredators
+    global nbTrees, nbBurningTrees, nbHumans, nbEvilRobots, nbRobots, nbPredators, season_timer
+    global addNoise, is_earthquake_active, earthquake_end_time, current_season, current_season_index
+    global next_earthquake_time, flood_active, flood_duration, next_flood_spread, flood_end_time
 
+    # tremblement de terre
+    if not is_earthquake_active and it >= next_earthquake_time:
+        if random() < proba_earthq or nbEvilRobots > 15:
+            # commencer le tremblement de terre
+            addNoise = True
+            is_earthquake_active = True
+            earthquake_end_time = it + earthq_time
+            next_earthquake_time = it + earthquake_cooldown  # Set next possible time
+            print(f"EARTHQUAKE STARTED! (Iteration: {it})")
+            # tue les humains
+            for human in humans:  
+                if random() < 0.5:  # 50% de proba pour mourrir
+                    setAgentAt(human.x, human.y, noAgentId)
+                    humans.remove(human)
+                    nbHumans -= 1
+                    print("A human died in the earthquake!")
 
-
-    #inondation
-    if it % 10 == 0 and random() < proba_flood:
-        water_tiles = []
-        for x in range(worldWidth):
+            # tue les prédateurs  
+            for predator in predators:
+                if random() < 0.2:  # 20% de proba pour mourrir
+                    setAgentAt(predator.x, predator.y, noAgentId)
+                    predators.remove(predator)
+                    nbPredators -= 1
+                    print("A predator died in the earthquake!")
+            # tremblement de terre détruit les batiments et l'usine avec une proba
             for y in range(worldHeight):
-                if getTerrainAt(x, y) == waterId:
-                    water_tiles.append((x, y))
+                for x in range(worldWidth):
+                    if getObjectAt(x, y, 9) == buildingId or getObjectAt(x, y, 10) == factoryId:
+                        if random() < 0.7:  
+                            setObjectAt(x, y, 0, 9)  # supprime le batiment
+                            setObjectAt(x, y, 0, 10)  # supprime l'usine
+                        
+    elif is_earthquake_active and it >= earthquake_end_time:
+        # la fin du tremblement de terre
+        addNoise = False
+        is_earthquake_active = False
+        print("EARTHQUAKE ENDED")
 
-        new_water_tiles = []
+        if random() < proba_flood_after_earthquake:
+            flood_active = True
+            next_flood_spread = it + flood_spread_interval
+            flood_end_time = it + flood_duration
+            print("FLOOD STARTED!")
 
-        #mettre le lac au même level
-        for x in range(13,20):
-            for y in range(3,10):
-                setTerrainAt(x,y,waterId)
-                setObjectAt(x,y,-1)
-                setHeightAt(x,y,1)
+            # initialisation de l'inondation
+            for x in range(13,20):
+                for y in range(3,10):
+                    setTerrainAt(x,y,waterId)
+                    setObjectAt(x,y,-1)
+                    setHeightAt(x,y,1)
 
-        for x, y in water_tiles:
-            for dx, dy in [(-1,0),(1,0),(0,-1),(0,1), (-1,-1),(-1,1),(1,-1),(1,1)]:
-                nx, ny = x + dx, y + dy
-
-                if 0 <= nx < worldWidth and 0 <= ny < worldHeight:
-                    if (getTerrainAt(nx, ny) != waterId and
-                        getHeightAt(nx, ny) <= 1 and
-                        (nx, ny) not in new_water_tiles):
-
-                        if random() < 0.5:
+    if flood_active:
+        if it >= next_flood_spread:
+            next_flood_spread = it + flood_spread_interval
+            water_tiles = []
+            
+            for x in range(worldWidth):
+                for y in range(worldHeight):
+                    if getTerrainAt(x, y) == waterId:
+                        water_tiles.append((x, y))
+            
+            new_water_tiles = []
+            
+            for x, y in water_tiles:
+                for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]:
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < worldWidth and 0 <= ny < worldHeight:
+                        if (getTerrainAt(nx, ny) != waterId and getHeightAt(nx, ny) <= 1 and (nx, ny) not in new_water_tiles):
                             setTerrainAt(nx, ny, waterId)
+                            setHeightAt(nx,ny,1)
                             setObjectAt(nx, ny, -1)
-                            setHeightAt(nx, ny, 1)
                             new_water_tiles.append((nx, ny))
-
+                            
+                            # detruit les arbres et tue les agents
                             if getObjectAt(nx, ny) == treeId:
                                 setObjectAt(nx, ny, noObjectId)
                                 nbTrees -= 1
-
+                            
                             agent = getAgentAt(nx, ny)
-                            if agent in [womanId, manId, predatorId,evilRobotId, playerId, robotId]:
+                            if agent in [womanId, manId, predatorId, evilRobotId, playerId, robotId]:
                                 setAgentAt(nx, ny, noAgentId)
-
-        return len(new_water_tiles) > 0
-
+            
+            print(f"Flood spread to {len(new_water_tiles)} new tiles")
+            
+        if it >= flood_end_time:
+            flood_active = False
+            print("FLOOD ENDED")
 
 #ARBRES
 
@@ -1031,7 +1088,16 @@ def stepWorld(it=0):
         # Ajouter les nouveaux arbres
         for x, y in new_trees:
             setObjectAt(x, y, treeId)
+        # Changement des saisons
+    season_timer += 1
+    if season_timer >= season_duration:
+        season_timer = 0
+        current_season_index = (current_season_index + 1) % len(SEASONS)
+        current_season = SEASONS[current_season_index]
+        loadAllImages()
+        print(f"Season changed to: {current_season}")
 
+    return False
 
 ### ### ### ### ###
 
@@ -1093,8 +1159,6 @@ def stepAgents( it = 0 ):
 ###
 ###
 
-
-
 timestamp = datetime.datetime.now().timestamp()
 
 loadAllImages()
@@ -1115,45 +1179,12 @@ userExit = False
 
 while userExit == False:
 
-    season_timer += 1
-    if season_timer >= season_duration:
-        season_timer = 0
-        current_season_index = (current_season_index + 1) % len(SEASONS)
-        current_season = SEASONS[current_season_index]
-
-        loadAllImages()
-
-        print(f"saison a change: {current_season}")
-
     if it != 0 and it % 100 == 0 and verboseFps:
         print ("[fps] ", ( it - itStamp ) / ( datetime.datetime.now().timestamp()-timeStamp ) )
         timeStamp = datetime.datetime.now().timestamp()
         itStamp = it
 
     #screen.blit(pygame.font.render(str(currentFps), True, (255,255,255)), (screenWidth-100, screenHeight-50))
-
-
-#ajout de la proba du earthquake
-    earthq = 0
-    if random() < proba_earthq or nbEvilRobots > 15:
-        addNoise = True
-        earthq = it
-
-        '''
-        for y in range(worldHeight):
-            for x in range(worldWidth):
-                print("immeuble : getObjectAt(x, y,9)")
-                if getObjectAt(x, y,9) == buildingId or getObjectAt(x,y,10)== factoryId:  #Remplace avec les IDs des bâtiments
-                    #if random() < 0.5:  # 50% de chance qu'un bâtiment s'effondre
-
-                    setObjectAt(x, y, 0)  # Supprime le bâtiment
-        '''
-
-        #pour supprimer l'immeuble et l'usine pendant le tremblement de terre mais marche pas
-#arret earthquake timer
-    if earthq >= earthq_time:
-        addNoise=False
-
 
     render(it)
 
@@ -1206,12 +1237,6 @@ while userExit == False:
         print ("")
         pygame.quit()
         sys.exit()
-
-    '''
-    #reproduction des ghosts
-    if it % 10 == 0:
-        agents.append(Player(ghostId))
-    '''
 
     # continuous stroke
     keys = pygame.key.get_pressed()
