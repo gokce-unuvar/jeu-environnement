@@ -56,11 +56,11 @@ versionTag = "2025-04-10_15h06"
 
 global nbTrees, nbBurningTrees, nbPredators, nbRobots, nbHumans, nbEvilRobots, nbBuilding
 
-nbTrees = 120 #350 - 131
+nbTrees = 100 #350 - 131
 nbBurningTrees = 7 #15 - 7
 nbPredators = 6 #6
 nbRobots = 4 #4
-nbHumans = 3 #7
+nbHumans = 7 #7
 nbEvilRobots = 0
 nbBuilding = 2
 
@@ -68,8 +68,8 @@ history_humans = []
 history_predators = []
 history_robots = []
 history_evil_robots = []
-history_arbres = []
-history_arbres_brules = []
+history_trees = []
+history_burning_trees = []
 
 
 
@@ -624,12 +624,13 @@ class Robot:
 
     def turn_evil(self):
         """Peux de chance de devenir méchant et d'attaquer les humains"""
-        global nbEvilRobots
+        global nbEvilRobots, nbRobots
 
         if not self.evil and random() < proba_turn_evil and nbRobots > 5 :
             self.evil = True
             self.type = evilRobotId  # Change appearance
             nbEvilRobots+=1
+            nbRobots-=1
         return
 
     def attack_human(self, humans):
@@ -1186,8 +1187,8 @@ def afficher_graphe() :
         plt.plot(history_predators, label="Prédateurs", color='dimgray')
         plt.plot(history_robots, label="Robots (gentils)", color='cornflowerblue')
         plt.plot(history_evil_robots, label="Robots (evils)", color='darkred')
-        plt.plot(history_arbres, label="Arbres", color='violet')
-        plt.plot(history_arbres_brules, label="Arbres brulés", color='darkorange')
+        plt.plot(history_trees, label="Arbres", color='violet')
+        plt.plot(history_burning_trees, label="Arbres brulés", color='darkorange')
 
         plt.xlabel("Temps (itérations)")
         plt.ylabel("Population")
@@ -1247,8 +1248,8 @@ while userExit == False:
     history_predators.append(nbPredators)
     history_robots.append(nbRobots)
     history_evil_robots.append(nbEvilRobots)
-    #history_arbres.append(nbArbres)
-    #history_arbres_brules.append(nbArbresBrules)
+    history_trees.append(nbTrees)
+    history_burning_trees.append(nbBurningTrees)
 
 
 #LES TESTS
