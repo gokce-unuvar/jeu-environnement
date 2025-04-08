@@ -60,9 +60,17 @@ nbTrees = 120 #350 - 131
 nbBurningTrees = 7 #15 - 7
 nbPredators = 6 #6
 nbRobots = 4 #4
-nbHumans = 7 #7
+nbHumans = 3 #7
 nbEvilRobots = 0
 nbBuilding = 2
+
+history_humans = []
+history_predators = []
+history_robots = []
+history_evil_robots = []
+history_arbres = []
+history_arbres_brules = []
+
 
 
 # These could be used later for visuals, or logic, or just to distinguish different agents
@@ -1170,6 +1178,25 @@ def stepAgents( it = 0 ):
     return
 
 
+def afficher_graphe() :
+        """fonction pour créer et afficher le graphes d'évolution des populations"""
+        
+        plt.figure(figsize=(10, 6))
+        plt.plot(history_humans, label="Humains", color='gold')
+        plt.plot(history_predators, label="Prédateurs", color='dimgray')
+        plt.plot(history_robots, label="Robots (gentils)", color='cornflowerblue')
+        plt.plot(history_evil_robots, label="Robots (evils)", color='darkred')
+        plt.plot(history_arbres, label="Arbres", color='violet')
+        plt.plot(history_arbres_brules, label="Arbres brulés", color='darkorange')
+
+        plt.xlabel("Temps (itérations)")
+        plt.ylabel("Population")
+        plt.title("Évolution des populations")
+        plt.legend()
+        plt.grid(True)
+        plt.show()
+
+
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
@@ -1210,29 +1237,20 @@ while userExit == False:
 
     perdu = False
 
+    stepAgents(it)
+
 
     if (nbHumans == 0) :
         perdu = True
 
-
-    '''
-    perdu = False
-    for a in agents:
-        if a.getPosition() == player.getPosition():
-            perdu = True
-            break
-    '''
-    stepAgents(it)
+    history_humans.append(nbHumans)
+    history_predators.append(nbPredators)
+    history_robots.append(nbRobots)
+    history_evil_robots.append(nbEvilRobots)
+    #history_arbres.append(nbArbres)
+    #history_arbres_brules.append(nbArbresBrules)
 
 
-
-    '''
-    for a in agents:
-        if a.getPosition() == player.getPosition():
-            perdu = True
-            break
-
-    '''
 #LES TESTS
     if it % 50 == 0:
         print("nb humains : ", nbHumans)
@@ -1252,6 +1270,8 @@ while userExit == False:
         print ("")
         print (">>> Score:",it,"--> BRAVO! ")
         print ("")
+        #GRAPHE
+        afficher_graphe()
         pygame.quit()
         sys.exit()
 
@@ -1281,6 +1301,8 @@ while userExit == False:
             sys.exit()
         if event.type == KEYUP:
             if event.key == K_ESCAPE:
+                #affichage du grpahe si touche Echap pressée
+                afficher_graphe()
                 userExit = True
             elif event.key == pygame.K_s:
                 player.move2(0,+1)
@@ -1354,8 +1376,5 @@ fps = it / ( datetime.datetime.now().timestamp()-timeStampStart )
 print ("[Quit] (", fps,"frames per second )")
 
 
-
 pygame.quit()
 sys.exit()
-
-plt.plot(it, nbHumans, color='blue')
