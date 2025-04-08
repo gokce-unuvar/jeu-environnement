@@ -106,11 +106,11 @@ burning_time = 5 * maxFps  # Durée avant que l'arbre brûlé apparaisse
 burnt_time = 10 *maxFps
 proba_rep_tree = 0.0005 
 proba_brule = 0.005 #0.0005
-proba_voisin_brule = 0.5 #0.05
+proba_voisin_brule = 0.005 #0.05
 
 proba_evil_brule = 0.05
 proba_turn_evil = 0.001
-proba_rep_hum = 0.001
+proba_rep_hum = 0.01
 proba_rep_pred = 0.001
 proba_fabrication_robots = 0.001
 proba_attack_pred = 1
@@ -118,18 +118,19 @@ proba_attack_pred = 1
 proba_earthq = 0.2
 is_earthquake_active = False
 earthquake_end_time = 0
-earthquake_initial_delay = 40 * maxFps  # 40 secondes avant que le tremblement de terre peut etre vrai
+earthquake_initial_delay = 60 * maxFps  # 60 secondes avant que le tremblement de terre peut etre vrai
 earthquake_cooldown = 80 * maxFps     # 80 secondes entre chaque tremblement de terre
 next_earthquake_time = earthquake_initial_delay  # le temps d'attente pour le prochain tremblement de terre
 earthq_time = 30 *maxFps #40
 
 proba_flood_after_earthquake = 0.7 
 flood_active = False
-flood_duration = 20 * maxFps  # la durée de l'inondation
+flood_duration = 40 * maxFps  # la durée de l'inondation
 flood_spread_interval = 10  # Spread every 10 frames
 flood_end_time=0
 next_flood_spread = 0
 
+last_building_count = 0
 #Pour les saisons
 SEASONS = ["SPRING", "SUMMER", "AUTUMN", "WINTER"]
 current_season_index = 0
@@ -908,7 +909,24 @@ def stepWorld(it=0):
     global nbTrees, nbBurningTrees, nbHumans, nbEvilRobots, nbRobots, nbPredators, season_timer
     global addNoise, is_earthquake_active, earthquake_end_time, current_season, current_season_index
     global next_earthquake_time, flood_active, flood_duration, next_flood_spread, flood_end_time
+    global last_building_count
 
+    if nbHumans//5 > last_building_count and nbHumans > 0:
+        last_building_count = nbHumans//5
+        for _ in range(100):  # essayer differents endroits
+            x,y = randint(0,worldWidth-1), randint(0,worldHeight-1)
+            if getObjectAt(x,y) == 0:  
+                setObjectAt(x,y,buildingId,9)  
+                
+                # Burn trees in 5x5 area around building
+                for bx in range(max(0,x-2), min(worldWidth,x+3)):
+                    for by in range(max(0,y-2), min(worldHeight,y+3)):
+                        if getObjectAt(bx,by) == treeId:
+                            setObjectAt(bx,by,burningTreeId)
+                            burning_trees[(bx,by)] = it
+                            nbBurningTrees += 1
+                            nbTrees -= 1
+                break
     # tremblement de terre
     if not is_earthquake_active and it >= next_earthquake_time:
         if random() < proba_earthq or nbEvilRobots > 15:
