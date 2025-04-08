@@ -1073,7 +1073,7 @@ def stepWorld(it=0):
                         nbBurningTrees-=1
 
                 # Les humains brulent
-                elif getAgentAt(x,y) in [womanId, manId, predatorId, robotId, evilRobotId]:
+                elif getAgentAt(x,y) in [playerId, womanId, manId, predatorId, robotId, evilRobotId]:
 
                     for neighbours in ((-1, 0), (+1, 0), (0, -1), (0, +1)):
                         nx = (x + neighbours[0] + worldWidth) % worldWidth
@@ -1088,7 +1088,8 @@ def stepWorld(it=0):
         # Ajouter les nouveaux arbres
         for x, y in new_trees:
             setObjectAt(x, y, treeId)
-        # Changement des saisons
+
+    # Changement des saisons
     season_timer += 1
     if season_timer >= season_duration:
         season_timer = 0
@@ -1146,6 +1147,11 @@ def stepAgents( it = 0 ):
                     print("ROBOOOOTS")
                     r.burnt(robots)
 
+#TEST POUR L'INSTANT
+        if (player.x, player.y,) in burning_agents and (it - burning_agents[(player.x, player.y)] >= burning_time) :
+            player.type = flameId
+        else : 
+            player.type = playerId
 
         player.attack_predator(predators)
 
