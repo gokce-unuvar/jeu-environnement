@@ -1,11 +1,14 @@
 #
 # Symbiotica
 
+
+#
 # Requirements: Python3, Pygame
 #
 # Credits for third party resources used in this project:
 # - Assets: https://www.kenney.nl/ (great assets by Kenney Vleugels with *public domain license*)
 # - https://www.uihere.com/free-cliparts/space-invaders-extreme-2-video-game-arcade-game-8-bit-space-invaders-3996521
+#
 # Random bookmarks:
 # - scaling images: https://stackoverflow.com/questions/43196126/how-do-you-scale-a-design-resolution-to-other-resolutions-with-pygame
 # - thoughts on grid worlds: http://www-cs-students.stanford.edu/~amitp/game-programming/grids/
@@ -19,23 +22,27 @@
 #       myText = myfont.render("Hello, World", True, (0, 128, 0))
 #       screen.blit(myText, (screenWidth/2 - text.get_width() / 2, screenHeight/2 - text.get_height() / 2))
 #       ... will fail.
+#
 # TODO list
 # - double buffer
 # -.multiple agents
 
-#Agents: Zoé Tabourier 21302469
-#Environnement: Gökçe Şükriye Ünüvar 21304812
 
 import sys
 import datetime
 from random import *
 import math
 import time
+
 import pygame
 from pygame.locals import *
 
+###
+
 versionTag = "2025-04-10_15h06"
 
+### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
+### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ###
 ### PARAMETERS: simulation
@@ -47,16 +54,19 @@ versionTag = "2025-04-10_15h06"
 
 global nbTrees, nbBurningTrees, nbPredators, nbRobots, nbHumans, nbEvilRobots, nbBuilding
 
-nbTrees = 120 #120
-nbBurningTrees = 7 #7
-nbPredators = 8 #6
-nbRobots = 6 #4
-nbHumans = 9 #7
+nbTrees = 120 #350 - 131
+nbBurningTrees = 7 #15 - 7
+nbPredators = 6 #6
+nbRobots = 4 #4
+nbHumans = 7 #7
 nbEvilRobots = 0
 nbBuilding = 2
 
+
 # These could be used later for visuals, or logic, or just to distinguish different agents
 noAgentId = 0
+### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
+### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ###
 ### PARAMETERS: rendering
@@ -95,11 +105,11 @@ burning_agents= {}
 burning_time = 5 * maxFps  # Durée avant que l'arbre brûlé apparaisse 
 burnt_time = 10 *maxFps
 proba_rep_tree = 0.0005 
-proba_brule = 0.0005 #0.0005
-proba_voisin_brule = 0.005 #0.05
+proba_brule = 0.005 #0.0005
+proba_voisin_brule = 0.5 #0.05
 
 proba_evil_brule = 0.05
-proba_turn_evil = 0.004
+proba_turn_evil = 0.001
 proba_rep_hum = 0.001
 proba_rep_pred = 0.001
 proba_fabrication_robots = 0.001
@@ -108,27 +118,27 @@ proba_attack_pred = 1
 proba_earthq = 0.2
 is_earthquake_active = False
 earthquake_end_time = 0
-earthquake_initial_delay = 50 * maxFps  # 50 secondes avant que le tremblement de terre peut etre vrai
+earthquake_initial_delay = 40 * maxFps  # 40 secondes avant que le tremblement de terre peut etre vrai
 earthquake_cooldown = 80 * maxFps     # 80 secondes entre chaque tremblement de terre
 next_earthquake_time = earthquake_initial_delay  # le temps d'attente pour le prochain tremblement de terre
 earthq_time = 30 *maxFps #40
 
-proba_flood_after_earthquake = 0.9 
+proba_flood_after_earthquake = 0.7 
 flood_active = False
-flood_duration = 40 * maxFps  # la durée de l'inondation
+flood_duration = 20 * maxFps  # la durée de l'inondation
 flood_spread_interval = 10  # Spread every 10 frames
 flood_end_time=0
 next_flood_spread = 0
 
-last_building_count = 0
-building_placed = False
 #Pour les saisons
 SEASONS = ["SPRING", "SUMMER", "AUTUMN", "WINTER"]
 current_season_index = 0
 current_season = SEASONS[current_season_index]
-season_duration = 30 * maxFps 
+season_duration = 30 * maxFps  # 30 saniye (maxFps frame/saniye)
 season_timer = 0
 
+### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
+### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ###
 ### setting up Pygame/SDL
@@ -141,6 +151,8 @@ fpsClock = pygame.time.Clock()
 screen = pygame.display.set_mode((screenWidth, screenHeight), DOUBLEBUF)
 pygame.display.set_caption('Symbiotica')
 
+### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
+### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ###
 ### CORE/USER: Image management
@@ -257,6 +269,8 @@ def resetImages():
     return
 
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
+### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
+### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ###
 ### CORE: objects parameters
 ###
@@ -267,6 +281,8 @@ def resetImages():
 tileTotalWidthOriginal = 111  # width of tile image
 tileTotalHeightOriginal = 128 # height of tile image
 tileVisibleHeightOriginal = 64 # height "visible" part of the image, i.e. top part without subterranean part
+
+###
 
 tileType = []
 objectType = []
@@ -285,6 +301,8 @@ burningTreeId = 3
 buildingId = 4
 factoryId = 5
 burntTreeId = 6 #len(objectType) - 1
+
+
 #agents
 playerId = 1
 womanId = 3
@@ -294,26 +312,38 @@ evilRobotId = 5  # Evil robots ont une id différente
 predatorId = 2
 flameId = 7
 
+
+###
+
 # re-scale reference image size -- must be done *after* loading sprites
 resetImages()
+
+###
 
 terrainMap = [x[:] for x in [[0] * worldWidth] * worldHeight]
 heightMap  = [x[:] for x in [[0] * worldWidth] * worldHeight]
 objectMap = [ [ [ 0 for i in range(worldWidth) ] for j in range(worldHeight) ] for k in range(objectMapLevels) ]
 agentMap   = [x[:] for x in [[0] * worldWidth] * worldHeight]
 
+###
+
 # set initial position for display on screen
 xScreenOffset = screenWidth/2 - tileTotalWidth/2
 yScreenOffset = 3*tileTotalHeight # border. Could be 0.
 
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
+### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
+### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### CORE: get/set methods
+###
 ###
 
 def displayWelcomeMessage():
+
     print ("")
     print ("=-= =-= =-= =-= =-= =-= =-= =-= =-= =-= =-= =-= =-=")
     print ("=-=                 Symbiotica                  =-=")
+    print ("=-=                                             =-=")
     print ("=-= =-= =-= =-= =-= =-= =-= =-= =-= =-= =-= =-= =-=")
     print (">> v.",versionTag)
     print ("")
@@ -336,6 +366,7 @@ def displayWelcomeMessage():
     print ("\tE           : increase scaling")
     print ("\tESC         : quit")
     print ("")
+
     return
 
 def getWorldWidth():
@@ -384,7 +415,10 @@ def setAgentAt(x,y,type):
     agentMap[y][x] = type
 
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
+### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
+### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### CORE: rendering
+###
 ###
 
 def render( it = 0 ):
@@ -398,10 +432,15 @@ def render( it = 0 ):
     for y in range(getViewHeight()):
         for x in range(getViewWidth()):
             # assume: north-is-upper-right
+
             xTile = ( xViewOffset + x + getWorldWidth() ) % getWorldWidth()
             yTile = ( yViewOffset + y + getWorldHeight() ) % getWorldHeight()
+
             heightNoise = 0
+
             if addNoise == True: # add sinusoidal noise on height positions
+
+
                 if it%int(math.pi*2*199) < int(math.pi*199):
                     # v1.
                     heightNoise = math.sin(it/23+yTile) * math.sin(it/7+xTile) * heightMultiplier/10 + math.cos(it/17+yTile+xTile) * math.cos(it/31+yTile) * heightMultiplier
@@ -420,14 +459,20 @@ def render( it = 0 ):
 
             if getAgentAt( xTile, yTile ) != 0: # agent on terrain?
                 screen.blit( agentType[ getAgentAt( xTile, yTile ) ] , (xScreen, yScreen - heightMultiplier ))
+
             #print(f"Agent at ({xTile}, {yTile}): {getAgentAt( xTile, yTile )}")  # Debugging print
+
     return
 
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
+### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
+### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### Agents
+###
 ###
 
 class Player:
+
     def __init__(self,imageId):
         self.type = imageId
         self.reset()
@@ -470,13 +515,17 @@ class Player:
                 break  # tue un predateur a la fois
         return
 
+
     def getType(self):
         return self.type
+
 
 #agents = []
 predators = []
 humans = []
 robots = []
+
+
 class Human:
     def __init__(self, imageId):
         self.type = imageId
@@ -527,6 +576,7 @@ class Human:
         del burning_agents[(self.x, self.y)] #PAS SUR DE METTRE çA LA
             #mettre une case sans objet la ou l'humain etait
         setAgentAt(self.x, self.y, noAgentId)
+
 
 class Robot:
     def __init__(self, imageId):
@@ -587,6 +637,7 @@ class Robot:
     def attack_predator(self, predators):
         """Si gentil, tue les predateurs avec une probabilite pour proteger les humains"""
         global nbPredators
+
         if not(self.evil) and random() < proba_attack_pred :
             for predator in predators:
                 if predator.x == self.x and predator.y == self.y:
@@ -599,13 +650,13 @@ class Robot:
         """Les humains se reproduisent avec une probabilité"""
         global nbRobots
         if random() < proba_fabrication_robots and self.evil == False :     #Les robots sont sains quand ils sortent de l'usine
-            print("un nouveau ROBOT !! ")
+            #print("un nouveau ROBOT !! ")
             robots.append(Robot(self.type))
             nbRobots+=1
         return
 
     def burnt(self,robots) :
-        global nbRobots, nbEvilRobots
+        global nbRobots
         robots.remove(self)
         del burning_agents[(self.x, self.y)]
             #mettre une case sans objet la ou l'humain etait
@@ -649,6 +700,7 @@ class Predator:
     def hunt(self, humans):
         """Tue un humain si sur la même case."""
         global nbHumans
+
         for human in humans :
             if human.x == self.x and human.y == self.y:
                 humans.remove(human)  #Tue l'humain
@@ -673,9 +725,14 @@ class Predator:
         nbPredators-=1
 
 
+
+### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
+### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### Initialise world
 ###
+###
+
 
 def initWorld():
     global nbTrees, nbBurningTrees, predators, humans, robots
@@ -693,6 +750,7 @@ def initWorld():
     [ 1, 2, 2, 1 ],
     [ 1, 1, 1, 1 ]
     ]
+
     x_offset = 3
     y_offset = 3
     for x in range( len( building1TerrainMap[0] ) ):
@@ -700,6 +758,7 @@ def initWorld():
             setTerrainAt( x+x_offset, y+y_offset, building1TerrainMap[x][y] )
             setHeightAt( x+x_offset, y+y_offset, building1HeightMap[x][y] )
             setObjectAt( x+x_offset, y+y_offset, -1 ) # add a virtual object: not displayed, but used to forbid agent(s) to come here.
+
     # add another pyramid-shape building with a tree on top
 
     building2TerrainMap = [
@@ -725,6 +784,7 @@ def initWorld():
     [ 0, 1, 1, 1, 1, 1, 0 ]
     ]
 
+
     x_offset = 4
     y_offset = 13
     for x in range( len( building2TerrainMap[0] ) ):
@@ -734,6 +794,7 @@ def initWorld():
             setObjectAt( x+x_offset, y+y_offset, -1 ) # add a virtual object: not displayed, but used to forbid agent(s) to come here.
     setObjectAt( x_offset+3, y_offset+4, treeId )
     nbTrees+=1
+
 
     mountainTerrainMap = [
         [2, 2, 2, 2, 2],
@@ -750,6 +811,7 @@ def initWorld():
         [1, 1, 1, 1, 1]
     ]
 
+
     x_offset = 35
     y_offset = 31
     for x in range(len(mountainTerrainMap[0])):
@@ -757,8 +819,10 @@ def initWorld():
             setTerrainAt(x+x_offset, y+y_offset, mountainTerrainMap[x][y])
             setHeightAt(x+x_offset, y+y_offset, mountainHeightMap[x][y])
             setObjectAt(x+x_offset, y+y_offset, -1)
+
     setObjectAt(x_offset+2, y_offset+2, treeId)
     nbTrees += 1
+
 
     #Ajout immeuble
     building_width =  5 # Largeur
@@ -780,6 +844,7 @@ def initWorld():
             for dy in range(1,building_height):
                 setObjectAt(x + dx, y + dy, 0, 9)
 
+
     #ajout usine
     x = 5
     y = 35
@@ -797,6 +862,7 @@ def initWorld():
             humans.append(Human(manId))
 
     #ajout robots dans le monde
+
     for i in range(nbRobots) :
         robots.append(Robot(robotId))
 
@@ -808,6 +874,7 @@ def initWorld():
             x = randint(0,getWorldWidth()-1)
             y = randint(0,getWorldHeight()-1)
         setObjectAt(x,y,treeId)
+
 
     #ajout arbres brules
     for i in range(nbBurningTrees):
@@ -835,37 +902,13 @@ def initWorld():
 def initAgents():
     return
 
-### ### ### ### ###
 
+### ### ### ### ###
 def stepWorld(it=0):
     global nbTrees, nbBurningTrees, nbHumans, nbEvilRobots, nbRobots, nbPredators, season_timer
     global addNoise, is_earthquake_active, earthquake_end_time, current_season, current_season_index
-    global next_earthquake_time, flood_active, flood_duration, next_flood_spread, flood_end_time, last_building_count, burning_placed
+    global next_earthquake_time, flood_active, flood_duration, next_flood_spread, flood_end_time
 
-    if nbHumans//5 > last_building_count and nbHumans > 0:
-        last_building_count = nbHumans//5
-        building_placed = False
-        for _ in range(100):  # essayer differents endroits
-            x,y = randint(0,worldWidth-1), randint(0,worldHeight-1)
-            if getObjectAt(x,y) == 0:  
-                setObjectAt(x,y,buildingId,9)  
-                
-                # Brûler les arbres autour (5x5)
-                trees_burned = 0
-                for dx in [-2, -1, 0, 1, 2]:
-                    for dy in [-2, -1, 0, 1, 2]:
-                        nx, ny = x + dx, y + dy
-                        if 0 <= nx < worldWidth and 0 <= ny < worldHeight:
-                            if getObjectAt(nx, ny) == treeId:
-                                setObjectAt(nx, ny, burningTreeId)
-                                burning_trees[(nx, ny)] = it
-                                nbBurningTrees += 1
-                                nbTrees -= 1
-                                trees_burned += 1
-                
-                print(f"{trees_burned} arbres brûlés autour du bâtiment")
-                building_placed = True
-                break
     # tremblement de terre
     if not is_earthquake_active and it >= next_earthquake_time:
         if random() < proba_earthq or nbEvilRobots > 15:
@@ -873,15 +916,15 @@ def stepWorld(it=0):
             addNoise = True
             is_earthquake_active = True
             earthquake_end_time = it + earthq_time
-            next_earthquake_time = it + earthquake_cooldown 
-            print(f"EARTHQUAKE STARTED! (Iteration: {it})")
+            next_earthquake_time = it + earthquake_cooldown  # Set next possible time
+            #print(f"EARTHQUAKE STARTED! (Iteration: {it})")
             # tue les humains
             for human in humans:  
                 if random() < 0.5:  # 50% de proba pour mourrir
                     setAgentAt(human.x, human.y, noAgentId)
                     humans.remove(human)
                     nbHumans -= 1
-                    print("A human died in the earthquake!")
+                    #print("A human died in the earthquake!")
 
             # tue les prédateurs  
             for predator in predators:
@@ -889,8 +932,7 @@ def stepWorld(it=0):
                     setAgentAt(predator.x, predator.y, noAgentId)
                     predators.remove(predator)
                     nbPredators -= 1
-                    print("A predator died in the earthquake!")
-
+                    #print("A predator died in the earthquake!")
             # tremblement de terre détruit les batiments et l'usine avec une proba
             for y in range(worldHeight):
                 for x in range(worldWidth):
@@ -903,13 +945,13 @@ def stepWorld(it=0):
         # la fin du tremblement de terre
         addNoise = False
         is_earthquake_active = False
-        print("EARTHQUAKE ENDED")
+        #print("EARTHQUAKE ENDED")
 
         if random() < proba_flood_after_earthquake:
             flood_active = True
             next_flood_spread = it + flood_spread_interval
             flood_end_time = it + flood_duration
-            print("FLOOD STARTED!")
+            #print("FLOOD STARTED!")
 
             # initialisation de l'inondation
             for x in range(13,20):
@@ -949,13 +991,14 @@ def stepWorld(it=0):
                             if agent in [womanId, manId, predatorId, evilRobotId, playerId, robotId]:
                                 setAgentAt(nx, ny, noAgentId)
             
-            print(f"Flood spread to {len(new_water_tiles)} new tiles")
+            #print(f"Flood spread to {len(new_water_tiles)} new tiles")
             
         if it >= flood_end_time:
             flood_active = False
-            print("FLOOD ENDED")
+            #print("FLOOD ENDED")
 
-    #ARBRES
+#ARBRES
+
    #bruler les arbres a cote de l'usine
     if it % 10 == 0:
         factory_min_x, factory_max_x = 5, 8
@@ -968,17 +1011,21 @@ def stepWorld(it=0):
                     continue
 
                 if 0 <= x < worldWidth and 0 <= y < worldHeight:
-                    if getObjectAt(x, y) == treeId:
+                    if getObjectAt(x, y) == treeId and random() < 0.01 : #proba de bruler
                         setObjectAt(x, y, burningTreeId)
                         burning_trees[(x, y)] = 0
                         nbTrees -= 1
                         nbBurningTrees += 1
 
+
+
     if it % (maxFps / 10) == 0:
         new_trees = []  # Liste des nouveaux arbres à planter
 
+
         for x in range(worldWidth):
             for y in range(worldHeight):
+
 
                 if getObjectAt(x, y) == treeId :
                     for neighbours in ((-1, 0), (+1, 0), (0, -1), (0, +1)):
@@ -1012,10 +1059,12 @@ def stepWorld(it=0):
                                 nbTrees+=1
                                 break  # Un seul nouvel arbre par cycle
 
+
                 # Transformation des arbres en feu en cendres
                 elif getObjectAt(x, y) == burningTreeId:
                     if (x, y) in burning_trees and it - burning_trees[(x, y)] >= burning_time:
                         setObjectAt(x, y, burntTreeId)
+                        #del burning_trees[(x, y)]
 
                 elif getObjectAt(x,y) ==  burntTreeId:
                     if (x, y) in burning_trees and it - burning_trees[(x, y)] >= burnt_time:
@@ -1025,12 +1074,16 @@ def stepWorld(it=0):
 
                 # Les humains brulent
                 elif getAgentAt(x,y) in [playerId, womanId, manId, predatorId, robotId, evilRobotId]:
+
                     for neighbours in ((-1, 0), (+1, 0), (0, -1), (0, +1)):
                         nx = (x + neighbours[0] + worldWidth) % worldWidth
                         ny = (y + neighbours[1] + worldHeight) % worldHeight
                         if getObjectAt(nx, ny) == burningTreeId :
                             setAgentAt(x, y, flameId)
+
                             burning_agents[(x, y)] = it  # Enregistre le moment où il brûle
+
+
 
         # Ajouter les nouveaux arbres
         for x, y in new_trees:
@@ -1043,7 +1096,8 @@ def stepWorld(it=0):
         current_season_index = (current_season_index + 1) % len(SEASONS)
         current_season = SEASONS[current_season_index]
         loadAllImages()
-        print(f"Season changed to: {current_season}")
+        #print(f"Season changed to: {current_season}")
+
     return False
 
 ### ### ### ### ###
@@ -1065,8 +1119,8 @@ def stepAgents( it = 0 ):
                 h.alive = False
                 #print("le 1er print marche !! ")
                 if (h.x, h.y) in burning_agents and (it - burning_agents[(h.x, h.y)] >= burning_time) :
-                    print("UIIIIII")
                     h.burnt(humans)
+
 
         for p in predators :
             if getAgentAt(p.x, p.y) != flameId and p.alive :
@@ -1076,7 +1130,6 @@ def stepAgents( it = 0 ):
             else :
                 p.alive = False
                 if (p.x, p.y) in burning_agents and (it - burning_agents[(p.x, p.y)] >= burning_time) :
-                    print("PREDATOOOORS")
                     p.burnt(predators)
 
         for r in robots :
@@ -1089,7 +1142,6 @@ def stepAgents( it = 0 ):
             else :
                 r.alive = False
                 if (r.x, r.y) in burning_agents and (it - burning_agents[(r.x, r.y)] >= burning_time) :
-                    print("ROBOOOOTS")
                     r.burnt(robots)
 
 #TEST POUR L'INSTANT
@@ -1102,8 +1154,12 @@ def stepAgents( it = 0 ):
 
     return
 
+
+### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
+### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### ### ### ### ### ### ### ### ### ### ### ### ### ### ### ###
 ### MAIN
+###
 ###
 
 timestamp = datetime.datetime.now().timestamp()
@@ -1140,10 +1196,10 @@ while userExit == False:
     perdu = False
 
     #A REMETTRE
-    
+    '''
     if (nbHumans == 0) :
         perdu = True
-    
+    '''
 
     '''
     perdu = False
@@ -1154,12 +1210,21 @@ while userExit == False:
     '''
     stepAgents(it)
 
+
+
+    '''
+    for a in agents:
+        if a.getPosition() == player.getPosition():
+            perdu = True
+            break
+
+    '''
 #LES TESTS
     if it % 50 == 0:
-        #print("nb humains : ", nbHumans)
+        print("nb humains : ", nbHumans)
         print("nb robots sains : ", nbRobots)
         print("nb robots evils : ", nbEvilRobots)
-        #print("nb predateurs : ", nbPredators)
+        print("nb predateurs : ", nbPredators)
 
 #________________________________________
 
