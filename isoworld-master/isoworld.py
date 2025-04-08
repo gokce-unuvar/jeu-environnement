@@ -37,6 +37,8 @@ import time
 import pygame
 from pygame.locals import *
 
+import matplotlib.pyplot as plt
+
 ###
 
 versionTag = "2025-04-10_15h06"
@@ -118,12 +120,12 @@ proba_attack_pred = 1
 proba_earthq = 0.2
 is_earthquake_active = False
 earthquake_end_time = 0
-earthquake_initial_delay = 40 * maxFps  # 40 secondes avant que le tremblement de terre peut etre vrai
+earthquake_initial_delay = 10 * maxFps  # 40 secondes avant que le tremblement de terre peut etre vrai
 earthquake_cooldown = 80 * maxFps     # 80 secondes entre chaque tremblement de terre
 next_earthquake_time = earthquake_initial_delay  # le temps d'attente pour le prochain tremblement de terre
 earthq_time = 30 *maxFps #40
 
-proba_flood_after_earthquake = 0.7 
+proba_flood_after_earthquake = 1 
 flood_active = False
 flood_duration = 20 * maxFps  # la durée de l'inondation
 flood_spread_interval = 10  # Spread every 10 frames
@@ -986,15 +988,28 @@ def stepWorld(it=0):
                             if getObjectAt(nx, ny) == treeId:
                                 setObjectAt(nx, ny, noObjectId)
                                 nbTrees -= 1
-                            
-                            agent = getAgentAt(nx, ny)
-                            if agent in [womanId, manId, predatorId, evilRobotId, playerId, robotId]:
-                                setAgentAt(nx, ny, noAgentId)
-            
+         
             #print(f"Flood spread to {len(new_water_tiles)} new tiles")
-            
+
+        #attendre la fin de l'inondation avant de tuer les agents pour ne pas qu'elle s'arrête    
         if it >= flood_end_time:
             flood_active = False
+            for x, y in water_tiles:
+                for dx, dy in [(-1,0), (1,0), (0,-1), (0,1)]:
+                    nx, ny = x + dx, y + dy
+                    if 0 <= nx < worldWidth and 0 <= ny < worldHeight:
+                        agent = getAgentAt(nx, ny)
+                        if agent in [womanId, manId, predatorId, evilRobotId, playerId, robotId] :
+                            setAgentAt(nx, ny, noAgentId)
+                            if agent == womanId or agent == manId :
+                                nbHumans-=1
+                            elif agent == predatorId :
+                                nbPredators-=1
+                            elif agent == robotId :
+                                nbRobots-=1
+                            elif agent ==  evilRobotId :
+                                nbEvilRobots-=1
+
             #print("FLOOD ENDED")
 
 #ARBRES
@@ -1195,11 +1210,10 @@ while userExit == False:
 
     perdu = False
 
-    #A REMETTRE
-    '''
+
     if (nbHumans == 0) :
         perdu = True
-    '''
+
 
     '''
     perdu = False
@@ -1339,5 +1353,9 @@ while userExit == False:
 fps = it / ( datetime.datetime.now().timestamp()-timeStampStart )
 print ("[Quit] (", fps,"frames per second )")
 
+
+
 pygame.quit()
 sys.exit()
+
+plt.plot(it, nbHumans, color='blue')
