@@ -968,7 +968,7 @@ def stepWorld(it=0):
                     continue
 
                 if 0 <= x < worldWidth and 0 <= y < worldHeight:
-                    if getObjectAt(x, y) == treeId and random() < 0.01 : #proba de bruler
+                    if getObjectAt(x, y) == treeId:
                         setObjectAt(x, y, burningTreeId)
                         burning_trees[(x, y)] = 0
                         nbTrees -= 1
