@@ -54,13 +54,13 @@ versionTag = "2025-04-10_15h06"
 
 # all values are for initialisation. May change during runtime.
 
-global nbTrees, nbBurningTrees, nbPredators, nbRobots, nbHumans, nbEvilRobots, nbBuilding
+global nbTrees, nbBurntTrees, nbPredators, nbRobots, nbHumans, nbEvilRobots, nbBuilding
 
 nbTrees = 100 #350 - 131
-nbBurningTrees = 7 #15 - 7
-nbPredators = 6 #6
+nbBurntTrees = 7 #15 - 7
+nbPredators = 8 #6
 nbRobots = 4 #4
-nbHumans = 7 #7
+nbHumans = 10 #7
 nbEvilRobots = 0
 nbBuilding = 2
 
@@ -110,30 +110,39 @@ maxFps = 30 # set up maximum number of frames-per-second
 verbose = False # display message in console on/off
 verboseFps = True # display FPS every once in a while
 
+#arbres
 burning_trees = {}  # Dictionnaire qui stocke (x, y) -> temps depuis qu'il brûle
 burning_agents= {}
 burning_time = 5 * maxFps  # Durée avant que l'arbre brûlé apparaisse 
 burnt_time = 10 *maxFps
 proba_rep_tree = 0.0005 
-proba_brule = 0.005 #0.0005
-proba_voisin_brule = 0.5 #0.05
+proba_brule = 0.0005 #0.0005
+proba_voisin_brule = 0.05 #0.05
 
+#agents
 proba_evil_brule = 0.05
-proba_turn_evil = 0.001
-proba_rep_hum = 0.001
+proba_turn_evil = 0.01
+proba_agent_brule = 0.7
+proba_rep_hum = 0.003
 proba_rep_pred = 0.001
-proba_fabrication_robots = 0.001
+proba_fabrication_robots = 0.009
 proba_attack_pred = 1
+human_speed = 6      # toutes les 2 frames
+predator_speed = 4   # toutes les 3 frames
+robot_speed = 3      # toutes les 5 frames
 
+
+#earthquake
 proba_earthq = 0.2
 is_earthquake_active = False
 earthquake_end_time = 0
-earthquake_initial_delay = 10 * maxFps  # 40 secondes avant que le tremblement de terre peut etre vrai
+earthquake_initial_delay = 50 * maxFps  # 40 secondes avant que le tremblement de terre peut etre vrai
 earthquake_cooldown = 80 * maxFps     # 80 secondes entre chaque tremblement de terre
 next_earthquake_time = earthquake_initial_delay  # le temps d'attente pour le prochain tremblement de terre
 earthq_time = 30 *maxFps #40
 
-proba_flood_after_earthquake = 1 
+#innondation
+proba_flood_after_earthquake = 0.7 
 flood_active = False
 flood_duration = 30 * maxFps  # la durée de l'inondation
 flood_spread_interval = 10  # Spread every 10 frames
@@ -602,28 +611,50 @@ class Robot:
         """Place le robot devant l'usine"""
         self.x = 5
         self.y = 32
-        #plus besoin de ça parce qu'ils doibent apparaitre tous au mm endroit
-        '''
-        while getTerrainAt(self.x, self.y) != 0 or getObjectAt(self.x, self.y) != 0 or getAgentAt(self.x, self.y) != 0:
-            self.x = randint(0, getWorldWidth() - 1)
-            self.y = randint(0, getWorldHeight() - 1)
-        setAgentAt(self.x, self.y, self.type)
-        '''
         return
 
+    
     def move(self):
-        """Bouge aléatoirement le robot dans le monde dans une des quatre directions."""
+        """Bouge aléatoirement le robot dans le monde dans une des quatre directions,sauf s'il y a un prédateur à côté (alors il va dans cette direction)."""
         xNew, yNew = self.x, self.y
-        if random() < 0.5:
-            xNew = (self.x + [-1, +1][randint(0, 1)] + getWorldWidth()) % getWorldWidth()
-        else:
-            yNew = (self.y + [-1, +1][randint(0, 1)] + getWorldHeight()) % getWorldHeight()
+        prey_near = False
 
-        if getObjectAt(xNew, yNew) == 0 :  # Can only move if no obstacle
+        if self.evil == False :
+            # Vérifie les cases autour pour aller vers un prédateur
+            for neighbours in [(-1,-1), (-1,+1), (+1,0), (0,-1), (-1,0), (+1,-1), (0,+1), (+1,+1)]:
+                nx = (self.x + neighbours[0] + worldWidth) % worldWidth
+                ny = (self.y + neighbours[1] + worldHeight) % worldHeight
+                if getAgentAt(nx, ny) == predatorId:
+                    xNew = (self.x + neighbours[0] + worldWidth) % worldWidth
+                    yNew = (self.y + neighbours[1] + worldHeight) % worldHeight
+                    prey_near = True
+                    break
+        else :
+            # Vérifie les cases autour pour aller vers un prédateur
+            for neighbours in [(-1,-1), (-1,+1), (+1,0), (0,-1), (-1,0), (+1,-1), (0,+1), (+1,+1)]:
+                nx = (self.x + neighbours[0] + worldWidth) % worldWidth
+                ny = (self.y + neighbours[1] + worldHeight) % worldHeight
+                if getAgentAt(nx, ny) == womanId or getAgentAt(nx, ny) == manId :
+                    xNew = (self.x + neighbours[0] + worldWidth) % worldWidth
+                    yNew = (self.y + neighbours[1] + worldHeight) % worldHeight
+                    prey_near = True
+                    break
+
+        # Si aucun prédateur proche, déplacement aléatoire
+        if not prey_near:
+            if random() < 0.5:
+                xNew = (self.x + [-1, +1][randint(0, 1)] + getWorldWidth()) % getWorldWidth()
+            else:
+                yNew = (self.y + [-1, +1][randint(0, 1)] + getWorldHeight()) % getWorldHeight()
+
+        # Déplacement si la case est libre
+        if getObjectAt(xNew, yNew) == 0:
             setAgentAt(self.x, self.y, noAgentId)
             self.x, self.y = xNew, yNew
             setAgentAt(self.x, self.y, self.type)
+
         return
+
 
     def turn_evil(self):
         """Peux de chance de devenir méchant et d'attaquer les humains"""
@@ -670,7 +701,7 @@ class Robot:
         return
 
     def burnt(self,robots) :
-        global nbRobots
+        global nbRobots, nbEvilRobots
         robots.remove(self)
         del burning_agents[(self.x, self.y)]
             #mettre une case sans objet la ou l'humain etait
@@ -698,18 +729,37 @@ class Predator:
         return
 
     def move(self):
-        """Bouge aléatoirement le predateur dans le monde dans une des quatre directions"""
+        """Bouge aléatoirement le predateur dans le monde dans une des quatre directions,
+        sauf s'il y a un humain à côté (alors il va dans cette direction)."""
         xNew, yNew = self.x, self.y
-        if random() < 0.5:
-            xNew = (self.x + [-1, +1][randint(0, 1)] + getWorldWidth()) % getWorldWidth()
-        else:
-            yNew = (self.y + [-1, +1][randint(0, 1)] + getWorldHeight()) % getWorldHeight()
+        pred_near = False
 
-        if getObjectAt(xNew, yNew) == 0:  # Can only move if no obstacle
+        # Vérifie les cases autour pour fuir un prédateur
+        for neighbours in [(-1,-1), (-1,+1), (+1,0), (0,-1), (-1,0), (+1,-1), (0,+1), (+1,+1)]:
+            nx = (self.x + neighbours[0] + worldWidth) % worldWidth
+            ny = (self.y + neighbours[1] + worldHeight) % worldHeight
+            if getAgentAt(nx, ny) == womanId or getAgentAt(nx,ny) == manId:
+                xNew = (self.x + neighbours[0] + worldWidth) % worldWidth
+                yNew = (self.y + neighbours[1] + worldHeight) % worldHeight
+                pred_near = True
+                break
+
+        # Si aucun prédateur proche, déplacement aléatoire
+        if not pred_near:
+            if random() < 0.5:
+                xNew = (self.x + [-1, +1][randint(0, 1)] + getWorldWidth()) % getWorldWidth()
+            else:
+                yNew = (self.y + [-1, +1][randint(0, 1)] + getWorldHeight()) % getWorldHeight()
+
+        # Déplacement si la case est libre
+        if getObjectAt(xNew, yNew) == 0:
             setAgentAt(self.x, self.y, noAgentId)
             self.x, self.y = xNew, yNew
             setAgentAt(self.x, self.y, self.type)
+
         return
+
+
 
     def hunt(self, humans):
         """Tue un humain si sur la même case."""
@@ -749,7 +799,7 @@ class Predator:
 
 
 def initWorld():
-    global nbTrees, nbBurningTrees, predators, humans, robots
+    global nbTrees, nbBurntTrees, predators, humans, robots
 
     # add a pyramid-shape building
     building1TerrainMap = [
@@ -891,7 +941,7 @@ def initWorld():
 
 
     #ajout arbres brules
-    for i in range(nbBurningTrees):
+    for i in range(nbBurntTrees):
         x = randint(0,getWorldWidth()-1)
         y = randint(0,getWorldHeight()-1)
         while getTerrainAt(x,y) != 0 or getObjectAt(x,y) != 0:
@@ -919,7 +969,7 @@ def initAgents():
 
 ### ### ### ### ###
 def stepWorld(it=0):
-    global nbTrees, nbBurningTrees, nbHumans, nbEvilRobots, nbRobots, nbPredators, season_timer
+    global nbTrees, nbBurntTrees, nbHumans, nbEvilRobots, nbRobots, nbPredators, season_timer
     global addNoise, is_earthquake_active, earthquake_end_time, current_season, current_season_index
     global next_earthquake_time, flood_active, flood_duration, next_flood_spread, flood_end_time, last_building_count, building_placed
 
@@ -940,7 +990,7 @@ def stepWorld(it=0):
                             if getObjectAt(nx, ny) == treeId:
                                 setObjectAt(nx, ny, burningTreeId)
                                 burning_trees[(nx, ny)] = it
-                                nbBurningTrees += 1
+                                nbBurntTrees += 1
                                 nbTrees -= 1
                                 trees_burned += 1
 
@@ -1067,7 +1117,7 @@ def stepWorld(it=0):
                         setObjectAt(x, y, burningTreeId)
                         burning_trees[(x, y)] = 0
                         nbTrees -= 1
-                        nbBurningTrees += 1
+                        nbBurntTrees += 1
 
 
 
@@ -1086,19 +1136,19 @@ def stepWorld(it=0):
                         if getObjectAt(nx, ny) == burningTreeId :
                             setObjectAt(x, y, burningTreeId)
                             burning_trees[(x, y)] = it  # Enregistre le moment où il brûle
-                            nbBurningTrees += 1
+                            nbBurntTrees += 1
                             nbTrees-=1
 
                         elif getAgentAt(nx, ny) == evilRobotId and random()< proba_evil_brule:
                             setObjectAt(x, y, burningTreeId)
                             burning_trees[(x, y)] = it
-                            nbBurningTrees +=1
+                            nbBurntTrees +=1
                             nbTrees-=1
 
                     if random() < proba_brule : #arbre brule aléatoirement
                         setObjectAt(x,y,burningTreeId)
                         burning_trees[(x, y)] = it
-                        nbBurningTrees+=1
+                        nbBurntTrees+=1
                         nbTrees-=1
 
                     # Reproduction des arbres
@@ -1122,10 +1172,9 @@ def stepWorld(it=0):
                     if (x, y) in burning_trees and it - burning_trees[(x, y)] >= burnt_time:
                         setObjectAt(x, y, 0)
                         del burning_trees[(x, y)]
-                        nbBurningTrees-=1
 
                 # Les humains brulent
-                elif getAgentAt(x,y) in [playerId, womanId, manId, predatorId, robotId, evilRobotId]:
+                elif getAgentAt(x,y) in [playerId, womanId, manId, predatorId, robotId, evilRobotId] and random() < proba_agent_brule :
 
                     for neighbours in ((-1, 0), (+1, 0), (0, -1), (0, +1)):
                         nx = (x + neighbours[0] + worldWidth) % worldWidth
@@ -1157,13 +1206,10 @@ def stepWorld(it=0):
 def stepAgents( it = 0 ):
     global nbHumans
     # move agent
-    if it % (maxFps/10) == 0:
 
-        shuffle(predators)
+    if it % human_speed == 0:
         shuffle(humans)
-        shuffle(robots)
-
-        for h in humans:   # shuffle agents in in-place (i.e. agents is modified)
+        for h in humans:   
             if getAgentAt(h.x,h.y) != flameId and h.alive : 
                 h.move()
                 h.reproduce(humans)
@@ -1173,7 +1219,8 @@ def stepAgents( it = 0 ):
                 if (h.x, h.y) in burning_agents and (it - burning_agents[(h.x, h.y)] >= burning_time) :
                     h.burnt(humans)
 
-
+    if it % predator_speed == 0:
+        shuffle(predators)
         for p in predators :
             if getAgentAt(p.x, p.y) != flameId and p.alive :
                 p.move()
@@ -1184,6 +1231,8 @@ def stepAgents( it = 0 ):
                 if (p.x, p.y) in burning_agents and (it - burning_agents[(p.x, p.y)] >= burning_time) :
                     p.burnt(predators)
 
+    if it % robot_speed == 0:
+        shuffle(robots)
         for r in robots :
             if (getAgentAt(r.x,r.y)) != flameId and r.alive :
                 r.move()
@@ -1225,7 +1274,7 @@ def afficher_graphe() :
 
         # GRAPHE 2 : Arbres
         ax2.plot(history_trees, label="Arbres sains", color='violet')
-        ax2.plot(history_burning_trees, label="Arbres en feu", color='darkorange')
+        ax2.plot(history_burning_trees, label="Arbres brûlés", color='darkorange')
         ax2.set_title("Évolution des arbres")
         ax2.set_xlabel("Temps (itérations)")
         ax2.set_ylabel("Nombre d'arbres")
@@ -1288,7 +1337,7 @@ while userExit == False:
     history_robots.append(nbRobots)
     history_evil_robots.append(nbEvilRobots)
     history_trees.append(nbTrees)
-    history_burning_trees.append(nbBurningTrees)
+    history_burning_trees.append(nbBurntTrees)
 
 
 #LES TESTS
