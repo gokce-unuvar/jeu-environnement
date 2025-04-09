@@ -135,10 +135,13 @@ earthq_time = 30 *maxFps #40
 
 proba_flood_after_earthquake = 1 
 flood_active = False
-flood_duration = 20 * maxFps  # la durée de l'inondation
+flood_duration = 30 * maxFps  # la durée de l'inondation
 flood_spread_interval = 10  # Spread every 10 frames
 flood_end_time=0
 next_flood_spread = 0
+
+last_building_count = 0
+building_placed = False
 
 #Pour les saisons
 SEASONS = ["SPRING", "SUMMER", "AUTUMN", "WINTER"]
@@ -491,7 +494,7 @@ class Player:
     def reset(self):
         self.x = randint(0,getWorldWidth()-1)
         self.y = randint(0,getWorldWidth()-1)
-        while getTerrainAt(self.x,self.y) != 0 or getObjectAt(self.x,self.y) != 0 or getAgentAt(self.x,self.y) != 0:
+        while getTerrainAt(self.x,self.y) != 0 or getObjectAt(self.x,self.y) != 0 or getAgentAt(self.x,self.y) != 0 :
             self.x = randint(0,getWorldWidth()-1)
             self.y = randint(0,getWorldHeight()-1)
         setAgentAt(self.x,self.y,self.type)
@@ -918,11 +921,36 @@ def initAgents():
 def stepWorld(it=0):
     global nbTrees, nbBurningTrees, nbHumans, nbEvilRobots, nbRobots, nbPredators, season_timer
     global addNoise, is_earthquake_active, earthquake_end_time, current_season, current_season_index
-    global next_earthquake_time, flood_active, flood_duration, next_flood_spread, flood_end_time
+    global next_earthquake_time, flood_active, flood_duration, next_flood_spread, flood_end_time, last_building_count, building_placed
+
+    if nbHumans//5 > last_building_count and nbHumans > 0:
+        last_building_count = nbHumans//5
+        building_placed = False
+        for _ in range(100) :  # essayer differents endroits
+            x,y = randint(0,worldWidth-1), randint(0,worldHeight-1)
+            if getObjectAt(x,y) == 0:
+                setObjectAt(x,y,buildingId,9)
+
+                #Brûler les arbres autour (5x5)
+                trees_burned = 0
+                for dx in [-2, -1, 0, 1, 2]:
+                    for dy in [-2, -1, 0, 1, 2]:
+                        nx, ny = x + dx, y + dy
+                        if 0 <= nx < worldWidth and 0 <= ny < worldHeight:
+                            if getObjectAt(nx, ny) == treeId:
+                                setObjectAt(nx, ny, burningTreeId)
+                                burning_trees[(nx, ny)] = it
+                                nbBurningTrees += 1
+                                nbTrees -= 1
+                                trees_burned += 1
+
+                print(f"{trees_burned} arbres brûlés autour du bâtiment")
+                building_placed = True
+                break
 
     # tremblement de terre
     if not is_earthquake_active and it >= next_earthquake_time:
-        if random() < proba_earthq or nbEvilRobots > 15:
+        if random() < proba_earthq or (nbEvilRobots+nbRobots) > 15 :
             # commencer le tremblement de terre
             addNoise = True
             is_earthquake_active = True
@@ -1182,19 +1210,30 @@ def stepAgents( it = 0 ):
 def afficher_graphe() :
         """fonction pour créer et afficher le graphes d'évolution des populations"""
         
-        plt.figure(figsize=(10, 6))
-        plt.plot(history_humans, label="Humains", color='gold')
-        plt.plot(history_predators, label="Prédateurs", color='dimgray')
-        plt.plot(history_robots, label="Robots (gentils)", color='cornflowerblue')
-        plt.plot(history_evil_robots, label="Robots (evils)", color='darkred')
-        plt.plot(history_trees, label="Arbres", color='violet')
-        plt.plot(history_burning_trees, label="Arbres brulés", color='darkorange')
+        fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(12, 10))  # 2 lignes, 1 colonne
 
-        plt.xlabel("Temps (itérations)")
-        plt.ylabel("Population")
-        plt.title("Évolution des populations")
-        plt.legend()
-        plt.grid(True)
+        # GRAPHE 1 : Agents
+        ax1.plot(history_humans, label="Humains", color='gold')
+        ax1.plot(history_predators, label="Prédateurs", color='dimgray')
+        ax1.plot(history_robots, label="Robots (gentils)", color='cornflowerblue')
+        ax1.plot(history_evil_robots, label="Robots (méchants)", color='darkred')
+        ax1.set_title("Évolution des agents")
+        ax1.set_xlabel("Temps (itérations)\n")
+        ax1.set_ylabel("Population")
+        ax1.legend()
+        ax1.grid(True)
+
+        # GRAPHE 2 : Arbres
+        ax2.plot(history_trees, label="Arbres sains", color='violet')
+        ax2.plot(history_burning_trees, label="Arbres en feu", color='darkorange')
+        ax2.set_title("Évolution des arbres")
+        ax2.set_xlabel("Temps (itérations)")
+        ax2.set_ylabel("Nombre d'arbres")
+        ax2.legend()
+        ax2.grid(True)
+
+        plt.tight_layout()
+        plt.savefig("graphes_combines.png")  #Enregistre les deux en un seul fichier
         plt.show()
 
 
