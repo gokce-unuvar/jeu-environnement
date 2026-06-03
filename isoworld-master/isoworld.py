@@ -121,7 +121,7 @@ proba_voisin_brule = 0.05 #0.05
 
 #agents
 proba_evil_brule = 0.05
-proba_turn_evil = 0.01
+proba_turn_evil = 0.1
 proba_agent_brule = 0.7
 proba_rep_hum = 0.003
 proba_rep_pred = 0.001
@@ -136,7 +136,7 @@ robot_speed = 3      # toutes les 5 frames
 proba_earthq = 0.2
 is_earthquake_active = False
 earthquake_end_time = 0
-earthquake_initial_delay = 50 * maxFps  # 40 secondes avant que le tremblement de terre peut etre vrai
+earthquake_initial_delay = 30 * maxFps  # 40 secondes avant que le tremblement de terre peut etre vrai
 earthquake_cooldown = 80 * maxFps     # 80 secondes entre chaque tremblement de terre
 next_earthquake_time = earthquake_initial_delay  # le temps d'attente pour le prochain tremblement de terre
 earthq_time = 30 *maxFps #40
