@@ -10,4 +10,3 @@ Notre projet :
 - les robots deviennent mauvais et tuent les humains
 - on voit l'environnement evoluer en fonction du nombre d'humains, de robots et de predateurs
 - evenements naturelles : feu de foret, tremblement de terre, meteorite, meteo, volcans ?
-(a finir)
